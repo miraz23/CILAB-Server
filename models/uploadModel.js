@@ -36,4 +36,19 @@ async function findUploadsByUser(userId) {
   return result.rows;
 }
 
-module.exports = { createUpload, findUploadsByUser };
+async function getUploadStatsByUser(userId) {
+  const result = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE upload_type = 'paper')::int AS papers,
+       COUNT(*) FILTER (WHERE upload_type = 'presentation')::int AS presentations,
+       COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+       COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+       COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected
+       FROM uploads
+      WHERE user_id = $1`,
+    [userId]
+  );
+  return { ...result.rows[0], totalDownloads: 0 };
+}
+
+module.exports = { createUpload, findUploadsByUser, getUploadStatsByUser };

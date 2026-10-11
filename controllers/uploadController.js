@@ -2,7 +2,7 @@ const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
 const { uploadBuffer } = require('../config/cloudinary');
-const { createUpload, findUploadsByUser } = require('../models/uploadModel');
+const { createUpload, findUploadsByUser, getUploadStatsByUser } = require('../models/uploadModel');
 
 const paperCategories = new Set([
   'Machine Learning', 'Computer Vision', 'NLP', 'Graph Neural Networks',
@@ -73,4 +73,8 @@ exports.uploadPresentation = catchAsync((req, res, next) => handleUpload(req, re
 exports.getMyUploads = catchAsync(async (req, res) => {
   const uploads = await findUploadsByUser(req.user.id);
   res.json({ success: true, uploads });
+});
+exports.getMyUploadStats = catchAsync(async (req, res) => {
+  const stats = await getUploadStatsByUser(req.user.id);
+  res.json({ success: true, stats });
 });

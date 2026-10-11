@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 router.post('/papers/upload', upload.single('pdf'), uploadController.uploadPaper);
 router.post('/presentations/upload', upload.single('file'), uploadController.uploadPresentation);
+router.get('/uploads/stats', uploadController.getMyUploadStats);
 router.get('/uploads', uploadController.getMyUploads);
 
 module.exports = router;
