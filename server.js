@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { initializeDb } = require('./config/db');
 
@@ -46,6 +47,7 @@ app.get('/', (req, res) => {
 
 app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api', uploadRoutes);
 app.use(errorHandler);
 
 initializeDb()

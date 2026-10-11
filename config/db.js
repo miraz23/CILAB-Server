@@ -37,6 +37,22 @@ async function initializeDb() {
   await pool.query(
     `UPDATE users SET status = 'active' WHERE status IS NULL OR status NOT IN ('active', 'pending', 'suspended')`
   );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS uploads (
+      id UUID PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      upload_type TEXT NOT NULL CHECK (upload_type IN ('paper', 'presentation')),
+      title TEXT NOT NULL,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      original_filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_size BIGINT NOT NULL,
+      cloudinary_public_id TEXT NOT NULL,
+      cloudinary_url TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 
 }
 
