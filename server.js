@@ -3,6 +3,7 @@ const express = require('express');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const accessRequestRoutes = require('./routes/accessRequestRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { initializeDb } = require('./config/db');
 
@@ -48,6 +49,7 @@ app.get('/', (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', uploadRoutes);
+app.use('/api/access-requests', accessRequestRoutes);
 app.use(errorHandler);
 
 initializeDb()

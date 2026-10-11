@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const catchAsync = require('../middleware/catchAsync');
 const AppError = require('../utils/appError');
-const { getUserById, findUserByEmail, updateUserProfile } = require('../models/userModel');
+const { getUserById, findUserByEmail, updateUserProfile, findUsers } = require('../models/userModel');
 
 function serializeUser(user) {
   return {
@@ -14,6 +14,25 @@ function serializeUser(user) {
     appRole: user.app_role,
   };
 }
+
+function serializeCollaborator(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    institution: user.institution,
+    role: user.role,
+  };
+}
+
+exports.listCollaborators = catchAsync(async (req, res) => {
+  const users = await findUsers({ ...req.query, status: 'active', sort: 'name' });
+  const collaborators = users
+    .filter((user) => user.id !== req.user.id)
+    .map(serializeCollaborator);
+
+  res.json({ success: true, users: collaborators });
+});
 
 exports.getProfile = catchAsync(async (req, res) => {
   const user = await getUserById(req.user.id);

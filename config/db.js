@@ -53,6 +53,105 @@ async function initializeDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS access_requests (
+      id UUID PRIMARY KEY,
+      sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      requester_id TEXT,
+      owner_id TEXT,
+      recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      share_link TEXT NOT NULL,
+      message TEXT,
+      expires_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      decided_at TIMESTAMPTZ
+    );
+  `);
+  // Older deployments may already have this table with a partial schema.
+  // Add the columns used by the current request flow before creating indexes.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'sender_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN sender_id TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'requester_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN requester_id TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'owner_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN owner_id TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'recipient_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN recipient_id TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'share_link'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN share_link TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'message'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN message TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'expires_at'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN expires_at TIMESTAMPTZ;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'status'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+      END IF;
+      ALTER TABLE access_requests ALTER COLUMN status SET DEFAULT 'pending';
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'created_at'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'updated_at'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'decided_at'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN decided_at TIMESTAMPTZ;
+      END IF;
+    END $$;
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS access_requests_recipient_idx
+      ON access_requests (recipient_id, created_at DESC);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS access_requests_sender_idx
+      ON access_requests (sender_id, created_at DESC);
+  `);
 
 }
 
