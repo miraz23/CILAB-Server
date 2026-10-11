@@ -10,7 +10,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 
 function createToken(user) {
   return jwt.sign(
-    { userId: user.id, email: user.email },
+    { userId: user.id, email: user.email, appRole: user.app_role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -54,6 +54,7 @@ exports.register = catchAsync(async (req, res, next) => {
     scholarId: normalizedScholarId,
     institution: String(institution).trim(),
     role: String(role).trim(),
+    appRole: 'USER',
   });
 
   res.status(201).json({
@@ -88,6 +89,16 @@ exports.login = catchAsync(async (req, res, next) => {
     success: true,
     message: 'Logged in successfully.',
     userId: user.id,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      scholarId: user.scholar_id,
+      institution: user.institution,
+      role: user.role,
+      appRole: user.app_role,
+      status: user.status,
+    },
     token,
   });
 });
