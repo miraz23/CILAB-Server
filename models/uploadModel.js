@@ -51,4 +51,58 @@ async function getUploadStatsByUser(userId) {
   return { ...result.rows[0], totalDownloads: 0 };
 }
 
-module.exports = { createUpload, findUploadsByUser, getUploadStatsByUser };
+async function findModerationUploads(filters = {}) {
+  const values = [];
+  const conditions = [];
+
+  if (filters.contentType && ['paper', 'presentation'].includes(filters.contentType)) {
+    values.push(filters.contentType);
+    conditions.push(`u.upload_type = $${values.length}`);
+  }
+  if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
+    values.push(filters.status);
+    conditions.push(`u.status = $${values.length}`);
+  }
+  if (filters.search) {
+    values.push(`%${filters.search}%`);
+    conditions.push(`(
+      u.title ILIKE $${values.length}
+      OR COALESCE(u.metadata->>'category', '') ILIKE $${values.length}
+      OR COALESCE(u.metadata->>'presentationType', '') ILIKE $${values.length}
+      OR usr.name ILIKE $${values.length}
+    )`);
+  }
+
+  const result = await pool.query(
+    `SELECT u.id, u.upload_type, u.title, u.metadata, u.original_filename,
+            u.cloudinary_url, u.file_size, u.status, u.created_at,
+            u.review_note, u.reviewed_at,
+            usr.id AS author_id, usr.name AS author_name,
+            usr.role AS author_role, usr.institution AS author_institution
+       FROM uploads u
+       JOIN users usr ON usr.id = u.user_id
+      ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
+      ORDER BY u.created_at DESC`,
+    values
+  );
+  return result.rows;
+}
+
+async function updateUploadModeration(id, status, note, reviewerId) {
+  const result = await pool.query(
+    `UPDATE uploads
+        SET status = $1, review_note = $2, reviewed_at = NOW(), reviewed_by = $3
+      WHERE id = $4
+      RETURNING id, status, review_note, reviewed_at`,
+    [status, note || null, reviewerId, id]
+  );
+  return result.rows[0];
+}
+
+module.exports = {
+  createUpload,
+  findUploadsByUser,
+  getUploadStatsByUser,
+  findModerationUploads,
+  updateUploadModeration,
+};

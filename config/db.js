@@ -152,6 +152,9 @@ async function initializeDb() {
     CREATE INDEX IF NOT EXISTS access_requests_sender_idx
       ON access_requests (sender_id, created_at DESC);
   `);
+  await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS review_note TEXT`);
+  await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS reviewed_by TEXT REFERENCES users(id)`);
 
 }
 
