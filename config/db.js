@@ -155,6 +155,25 @@ async function initializeDb() {
   await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS review_note TEXT`);
   await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS reviewed_by TEXT REFERENCES users(id)`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_availability (
+      id UUID PRIMARY KEY,
+      display_name TEXT NOT NULL DEFAULT 'Md. Khaliluzzaman',
+      day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      mode TEXT NOT NULL CHECK (mode IN ('in-person', 'online')),
+      place TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (end_time > start_time)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS schedule_availability_active_idx
+      ON schedule_availability (active, day_of_week, start_time);
+  `);
 
 }
 

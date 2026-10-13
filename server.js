@@ -4,6 +4,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const accessRequestRoutes = require('./routes/accessRequestRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { initializeDb } = require('./config/db');
 
@@ -50,6 +51,7 @@ app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
+app.use('/api/admin/schedule', scheduleRoutes);
 app.use(errorHandler);
 
 initializeDb()
