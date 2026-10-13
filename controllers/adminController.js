@@ -5,6 +5,12 @@ const {
   findModerationUploads,
   updateUploadModeration,
 } = require('../models/uploadModel');
+const { getPlatformStats } = require('../models/analyticsModel');
+
+exports.getPlatformStats = catchAsync(async (req, res) => {
+  const stats = await getPlatformStats();
+  res.json({ success: true, message: 'Platform analytics loaded.', stats });
+});
 
 function serializeUser(user) {
   return {

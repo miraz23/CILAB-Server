@@ -4,6 +4,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
+router.get('/analytics', adminController.getPlatformStats);
 router.get('/users', adminController.listUsers);
 router.patch('/users/:id/access', adminController.updateAccess);
 router.get('/moderation', adminController.listModerationUploads);
