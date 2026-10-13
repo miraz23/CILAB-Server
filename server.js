@@ -5,6 +5,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const accessRequestRoutes = require('./routes/accessRequestRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { initializeDb } = require('./config/db');
 
@@ -52,6 +53,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
 app.use('/api/admin/schedule', scheduleRoutes);
+app.use('/api/admin/announcements', announcementRoutes);
 app.use(errorHandler);
 
 initializeDb()

@@ -174,6 +174,27 @@ async function initializeDb() {
     CREATE INDEX IF NOT EXISTS schedule_availability_active_idx
       ON schedule_availability (active, day_of_week, start_time);
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      audience TEXT NOT NULL CHECK (audience IN ('all', 'students', 'faculty', 'admins')),
+      priority TEXT NOT NULL DEFAULT 'normal'
+        CHECK (priority IN ('normal', 'important', 'urgent')),
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'published', 'archived')),
+      pinned BOOLEAN NOT NULL DEFAULT FALSE,
+      publish_at TIMESTAMPTZ,
+      author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS announcements_status_updated_idx
+      ON announcements (status, updated_at DESC);
+  `);
 
 }
 
