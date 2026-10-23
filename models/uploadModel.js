@@ -36,6 +36,17 @@ async function findUploadsByUser(userId) {
   return result.rows;
 }
 
+async function findPublishedUploads() {
+  const result = await pool.query(
+    `SELECT u.id, u.upload_type, u.title, u.metadata, u.cloudinary_url,
+            u.file_size, u.created_at, usr.name AS author_name
+       FROM uploads u
+       JOIN users usr ON usr.id = u.user_id
+      ORDER BY u.created_at DESC`
+  );
+  return result.rows;
+}
+
 async function getUploadStatsByUser(userId) {
   const result = await pool.query(
     `SELECT
@@ -102,6 +113,7 @@ async function updateUploadModeration(id, status, note, reviewerId) {
 module.exports = {
   createUpload,
   findUploadsByUser,
+  findPublishedUploads,
   getUploadStatsByUser,
   findModerationUploads,
   updateUploadModeration,

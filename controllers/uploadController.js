@@ -44,12 +44,14 @@ async function handleUpload(req, res, next, type) {
         abstract: text(req.body.abstract),
         category: text(req.body.category),
         tags: text(req.body.tags),
+        publicationLink: text(req.body.publicationLink),
       }
     : {
         event: text(req.body.event),
         date: text(req.body.date),
         presentationType: text(req.body.type),
         description: text(req.body.description),
+        publicationLink: text(req.body.publicationLink),
       };
 
   const upload = await createUpload({

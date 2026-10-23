@@ -6,6 +6,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const accessRequestRoutes = require('./routes/accessRequestRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const publicScheduleRoutes = require('./routes/publicScheduleRoutes');
+const researchRoutes = require('./routes/researchRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { initializeDb } = require('./config/db');
@@ -52,6 +53,7 @@ app.get('/', (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/schedule', publicScheduleRoutes);
+app.use('/api/research', researchRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
 app.use('/api/admin/schedule', scheduleRoutes);
