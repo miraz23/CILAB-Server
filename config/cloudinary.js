@@ -25,4 +25,14 @@ function uploadBuffer(buffer, options) {
   });
 }
 
-module.exports = { cloudinary, configureCloudinary, uploadBuffer };
+function destroyResource(publicId, options = {}) {
+  configureCloudinary();
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.destroy(publicId, options, (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    });
+  });
+}
+
+module.exports = { cloudinary, configureCloudinary, uploadBuffer, destroyResource };

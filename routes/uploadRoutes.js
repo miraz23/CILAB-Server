@@ -9,5 +9,7 @@ router.post('/papers/upload', upload.single('pdf'), uploadController.uploadPaper
 router.post('/presentations/upload', upload.single('file'), uploadController.uploadPresentation);
 router.get('/uploads/stats', uploadController.getMyUploadStats);
 router.get('/uploads', uploadController.getMyUploads);
+router.patch('/uploads/:id', uploadController.updateMyUpload);
+router.delete('/uploads/:id', uploadController.deleteMyUpload);
 
 module.exports = router;

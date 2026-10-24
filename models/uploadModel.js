@@ -27,13 +27,35 @@ async function createUpload(upload) {
 async function findUploadsByUser(userId) {
   const result = await pool.query(
     `SELECT id, upload_type, title, metadata, original_filename, mime_type,
-            file_size, cloudinary_url, status, created_at
+            file_size, cloudinary_public_id, cloudinary_url, status, created_at
        FROM uploads
       WHERE user_id = $1
       ORDER BY created_at DESC`,
     [userId]
   );
   return result.rows;
+}
+
+async function updateUploadByUser(id, userId, title, metadata) {
+  const result = await pool.query(
+    `UPDATE uploads
+        SET title = $1, metadata = $2::jsonb
+      WHERE id = $3 AND user_id = $4
+      RETURNING id, upload_type, title, metadata, original_filename, mime_type,
+                file_size, cloudinary_url, status, created_at`,
+    [title, JSON.stringify(metadata), id, userId]
+  );
+  return result.rows[0];
+}
+
+async function deleteUploadByUser(id, userId) {
+  const result = await pool.query(
+    `DELETE FROM uploads
+      WHERE id = $1 AND user_id = $2
+      RETURNING id, cloudinary_public_id, upload_type`,
+    [id, userId]
+  );
+  return result.rows[0];
 }
 
 async function findPublishedUploads() {
@@ -113,6 +135,8 @@ async function updateUploadModeration(id, status, note, reviewerId) {
 module.exports = {
   createUpload,
   findUploadsByUser,
+  updateUploadByUser,
+  deleteUploadByUser,
   findPublishedUploads,
   getUploadStatsByUser,
   findModerationUploads,
