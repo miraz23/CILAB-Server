@@ -6,7 +6,9 @@ const { getUserById } = require('../models/userModel');
 const {
   createAccessRequests,
   findReceivedAccessRequests,
+  findSentAccessRequests,
   updateAccessRequestStatus,
+  updateSentAccessRequest,
 } = require('../models/accessRequestModel');
 
 function text(value) {
@@ -22,6 +24,26 @@ function serializeReceivedRequest(request) {
       email: request.sender_email,
       role: request.sender_role,
       institution: request.sender_institution,
+    },
+    shareLink: request.share_link,
+    message: request.message || undefined,
+    expiresAt: request.expires_at || undefined,
+    status: request.status,
+    createdAt: request.created_at,
+    updatedAt: request.updated_at,
+    decidedAt: request.decided_at || undefined,
+  };
+}
+
+function serializeSentRequest(request) {
+  return {
+    id: request.id,
+    toUser: {
+      id: request.recipient_id,
+      name: request.recipient_name,
+      email: request.recipient_email,
+      role: request.recipient_role,
+      institution: request.recipient_institution,
     },
     shareLink: request.share_link,
     message: request.message || undefined,
@@ -100,6 +122,50 @@ exports.listReceived = catchAsync(async (req, res) => {
     success: true,
     message: 'Received access requests loaded.',
     requests: requests.map(serializeReceivedRequest),
+  });
+});
+
+exports.listSent = catchAsync(async (req, res) => {
+  const requests = await findSentAccessRequests(req.user.id);
+  res.json({
+    success: true,
+    message: 'Sent access requests loaded.',
+    requests: requests.map(serializeSentRequest),
+  });
+});
+
+exports.updateSent = catchAsync(async (req, res, next) => {
+  const shareLink = text(req.body.shareLink);
+  if (!shareLink) return next(new AppError('A share link is required.', 400));
+  try {
+    const parsedLink = new URL(shareLink);
+    if (!['http:', 'https:'].includes(parsedLink.protocol)) throw new Error();
+  } catch {
+    return next(new AppError('Please provide a valid share link.', 400));
+  }
+
+  let expiresAt = null;
+  if (req.body.expiresAt) {
+    const parsedExpiry = new Date(req.body.expiresAt);
+    if (Number.isNaN(parsedExpiry.getTime()) || parsedExpiry <= new Date()) {
+      return next(new AppError('Expiration must be a valid future date.', 400));
+    }
+    expiresAt = parsedExpiry.toISOString();
+  }
+
+  const request = await updateSentAccessRequest(
+    req.params.id,
+    req.user.id,
+    shareLink,
+    text(req.body.message),
+    expiresAt
+  );
+  if (!request) return next(new AppError('Request was not found or cannot be edited.', 404));
+
+  res.json({
+    success: true,
+    message: 'Access request updated.',
+    request: serializeUpdatedRequest(request),
   });
 });
 

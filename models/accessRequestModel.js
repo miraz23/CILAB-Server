@@ -46,6 +46,27 @@ async function findReceivedAccessRequests(recipientId) {
   return requests.rows;
 }
 
+async function findSentAccessRequests(senderId) {
+  await pool.query(
+    `UPDATE access_requests
+        SET status = 'expired', updated_at = NOW(), decided_at = COALESCE(decided_at, NOW())
+      WHERE sender_id = $1 AND status = 'pending' AND expires_at IS NOT NULL AND expires_at <= NOW()`,
+    [senderId]
+  );
+  const requests = await pool.query(
+    `SELECT ar.id, ar.share_link, ar.message, ar.expires_at, ar.status,
+            ar.created_at, ar.updated_at, ar.decided_at,
+            u.id AS recipient_id, u.name AS recipient_name, u.email AS recipient_email,
+            u.role AS recipient_role, u.institution AS recipient_institution
+       FROM access_requests ar
+       JOIN users u ON u.id = ar.recipient_id
+      WHERE ar.sender_id = $1
+      ORDER BY ar.created_at DESC`,
+    [senderId]
+  );
+  return requests.rows;
+}
+
 async function updateAccessRequestStatus(id, userId, status) {
   const isSenderAction = status === 'revoked';
   const ownerColumn = isSenderAction ? 'sender_id' : 'recipient_id';
@@ -63,8 +84,23 @@ async function updateAccessRequestStatus(id, userId, status) {
   return result.rows[0];
 }
 
+async function updateSentAccessRequest(id, senderId, shareLink, message, expiresAt) {
+  const result = await pool.query(
+    `UPDATE access_requests
+        SET share_link = $1, message = $2, expires_at = $3, updated_at = NOW()
+      WHERE id = $4 AND sender_id = $5
+        AND status IN ('pending', 'accepted')
+      RETURNING id, sender_id, recipient_id, share_link, message, expires_at,
+                status, created_at, updated_at, decided_at`,
+    [shareLink, message || null, expiresAt || null, id, senderId]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   createAccessRequests,
   findReceivedAccessRequests,
+  findSentAccessRequests,
   updateAccessRequestStatus,
+  updateSentAccessRequest,
 };
