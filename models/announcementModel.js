@@ -1,8 +1,9 @@
 const { pool } = require('../config/db');
 
 const SELECT_FIELDS = `
-  SELECT a.id, a.title, a.body, a.audience, a.priority, a.status, a.pinned,
-         a.publish_at, a.created_at, a.updated_at,
+  SELECT a.id, a.kind, a.title, a.body, a.audience, a.priority, a.status, a.pinned,
+         a.publish_at, a.event_at, a.venue, a.poster, a.extra_fields,
+         a.created_at, a.updated_at,
          COALESCE(u.id, '') AS author_id,
          COALESCE(u.name, 'Former administrator') AS author_name
     FROM announcements a
@@ -18,7 +19,9 @@ async function listAnnouncements(filters = {}) {
   };
 
   if (filters.status) add('a.status =', filters.status);
+  if (filters.kind) add('a.kind =', filters.kind);
   if (filters.audience) add('a.audience =', filters.audience);
+  if (filters.publishedNow) conditions.push('(a.publish_at IS NULL OR a.publish_at <= NOW())');
   if (filters.search) {
     values.push(`%${filters.search}%`);
     conditions.push(`(a.title ILIKE $${values.length} OR a.body ILIKE $${values.length})`);
@@ -36,11 +39,13 @@ async function listAnnouncements(filters = {}) {
 async function createAnnouncement(announcement) {
   const result = await pool.query(
     `INSERT INTO announcements
-       (id, title, body, audience, priority, status, pinned, publish_at, author_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (id, kind, title, body, audience, priority, status, pinned, publish_at,
+        event_at, venue, poster, extra_fields, author_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING id`,
     [
       announcement.id,
+      announcement.kind,
       announcement.title,
       announcement.body,
       announcement.audience,
@@ -48,6 +53,10 @@ async function createAnnouncement(announcement) {
       announcement.status,
       announcement.pinned,
       announcement.publishAt || null,
+      announcement.eventAt || null,
+      announcement.venue || null,
+      announcement.poster || null,
+      JSON.stringify(announcement.extraFields || []),
       announcement.authorId,
     ]
   );
@@ -57,19 +66,26 @@ async function createAnnouncement(announcement) {
 async function updateAnnouncement(id, changes) {
   const columnMap = {
     title: 'title',
+    kind: 'kind',
     body: 'body',
     audience: 'audience',
     priority: 'priority',
     status: 'status',
     pinned: 'pinned',
     publishAt: 'publish_at',
+    eventAt: 'event_at',
+    venue: 'venue',
+    poster: 'poster',
+    extraFields: 'extra_fields',
   };
   const fields = [];
   const values = [];
   for (const [key, value] of Object.entries(changes)) {
     if (value !== undefined && columnMap[key]) {
       fields.push(`${columnMap[key]} = $${values.length + 1}`);
-      values.push(key === 'publishAt' && value === '' ? null : value);
+      if (key === 'publishAt' || key === 'eventAt') values.push(value === '' ? null : value);
+      else if (key === 'extraFields') values.push(JSON.stringify(value || []));
+      else values.push(value);
     }
   }
   if (!fields.length) return null;

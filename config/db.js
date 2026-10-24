@@ -177,6 +177,8 @@ async function initializeDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS announcements (
       id UUID PRIMARY KEY,
+      kind TEXT NOT NULL DEFAULT 'announcement'
+        CHECK (kind IN ('announcement', 'notice', 'seminar')),
       title TEXT NOT NULL,
       body TEXT NOT NULL,
       audience TEXT NOT NULL CHECK (audience IN ('all', 'students', 'faculty', 'admins')),
@@ -186,10 +188,23 @@ async function initializeDb() {
         CHECK (status IN ('draft', 'published', 'archived')),
       pinned BOOLEAN NOT NULL DEFAULT FALSE,
       publish_at TIMESTAMPTZ,
+      event_at TIMESTAMPTZ,
+      venue TEXT,
+      poster TEXT,
+      extra_fields JSONB NOT NULL DEFAULT '[]'::jsonb,
       author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'announcement'`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS event_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS venue TEXT`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS poster TEXT`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS extra_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS announcements_kind_status_idx
+      ON announcements (kind, status, updated_at DESC);
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS announcements_status_updated_idx
