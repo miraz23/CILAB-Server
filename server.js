@@ -14,6 +14,7 @@ const { initializeDb } = require('./config/db');
 const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT;
+let dbInitialization;
 
 const allowedOrigins = new Set(
   (process.env.CORS_ORIGIN || 'http://localhost:3000')
@@ -60,13 +61,39 @@ app.use('/api/admin/schedule', scheduleRoutes);
 app.use('/api/admin/announcements', announcementRoutes);
 app.use(errorHandler);
 
-initializeDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server listening at http://localhost:${PORT}`);
+function ensureDbInitialized() {
+  if (!dbInitialization) {
+    dbInitialization = initializeDb().catch((err) => {
+      dbInitialization = undefined;
+      throw err;
     });
-  })
-  .catch(err => {
+  }
+
+  return dbInitialization;
+}
+
+if (require.main === module) {
+  ensureDbInitialized()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Server listening at http://localhost:${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('Failed to initialize database:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = async function handler(req, res) {
+  try {
+    await ensureDbInitialized();
+    return app(req, res);
+  } catch (err) {
     console.error('Failed to initialize database:', err);
-    process.exit(1);
-  });
+    return res.status(500).json({
+      success: false,
+      message: 'Service temporarily unavailable.',
+    });
+  }
+};
