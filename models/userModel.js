@@ -73,6 +73,23 @@ async function findUsers(filters = {}) {
   return result.rows;
 }
 
+async function findPublicMembers() {
+  const result = await pool.query(
+    `SELECT id, name, email, scholar_id, institution, role, created_at
+       FROM users
+      WHERE status = 'active'
+      ORDER BY
+        CASE LOWER(role)
+          WHEN 'faculty' THEN 0
+          WHEN 'professor' THEN 0
+          WHEN 'researcher' THEN 1
+          ELSE 2
+        END,
+        name ASC`
+  );
+  return result.rows;
+}
+
 async function updateUserAccess(id, changes) {
   const fields = [];
   const values = [];
@@ -134,6 +151,7 @@ module.exports = {
   findUserByScholarId,
   createUser,
   findUsers,
+  findPublicMembers,
   updateUserAccess,
   getUserById,
   updateLastActive,
