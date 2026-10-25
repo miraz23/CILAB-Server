@@ -2,6 +2,7 @@ const { URL } = require('url');
 const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
+const { uploadBuffer, destroyResource } = require('../config/cloudinary');
 const { getUserById } = require('../models/userModel');
 const {
   createAccessRequests,
@@ -9,6 +10,7 @@ const {
   findSentAccessRequests,
   updateAccessRequestStatus,
   updateSentAccessRequest,
+  uploadReceivedPaper,
 } = require('../models/accessRequestModel');
 
 function text(value) {
@@ -26,6 +28,13 @@ function serializeReceivedRequest(request) {
       institution: request.sender_institution,
     },
     shareLink: request.share_link,
+    paper: request.paper_url
+      ? {
+          url: request.paper_url,
+          originalFilename: request.paper_original_filename,
+          uploadedAt: request.paper_uploaded_at,
+        }
+      : undefined,
     message: request.message || undefined,
     expiresAt: request.expires_at || undefined,
     status: request.status,
@@ -46,6 +55,13 @@ function serializeSentRequest(request) {
       institution: request.recipient_institution,
     },
     shareLink: request.share_link,
+    paper: request.paper_url
+      ? {
+          url: request.paper_url,
+          originalFilename: request.paper_original_filename,
+          uploadedAt: request.paper_uploaded_at,
+        }
+      : undefined,
     message: request.message || undefined,
     expiresAt: request.expires_at || undefined,
     status: request.status,
@@ -185,5 +201,49 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
     success: true,
     message: `Access request ${status}.`,
     request: serializeUpdatedRequest(request),
+  });
+});
+
+exports.uploadPaper = catchAsync(async (req, res, next) => {
+  if (!req.file) return next(new AppError('A PDF file is required.', 400));
+
+  const cloudinaryResult = await uploadBuffer(req.file.buffer, {
+    folder: `cilab/${req.user.id}/access-request-papers`,
+    resource_type: 'raw',
+    use_filename: true,
+    unique_filename: true,
+    overwrite: false,
+  });
+
+  const request = await uploadReceivedPaper(req.params.id, req.user.id, {
+    publicId: cloudinaryResult.public_id,
+    url: cloudinaryResult.secure_url,
+    originalFilename: req.file.originalname,
+    mimeType: req.file.mimetype,
+    fileSize: req.file.size,
+  });
+
+  if (!request) {
+    await destroyResource(cloudinaryResult.public_id, { resource_type: 'raw' });
+    return next(new AppError('Request was not found, has expired, or cannot receive a paper.', 404));
+  }
+
+  if (request.previous_paper_public_id && request.previous_paper_public_id !== cloudinaryResult.public_id) {
+    try {
+      await destroyResource(request.previous_paper_public_id, { resource_type: 'raw' });
+    } catch (error) {
+      console.error('Unable to remove the previous requested paper from Cloudinary:', error);
+    }
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Requested paper uploaded successfully.',
+    paper: {
+      url: request.paper_url,
+      originalFilename: request.paper_original_filename,
+      uploadedAt: request.paper_uploaded_at,
+    },
+    status: request.status,
   });
 });

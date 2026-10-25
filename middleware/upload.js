@@ -18,4 +18,16 @@ const upload = multer({
   },
 });
 
+const pdfUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024, files: 1 },
+  fileFilter(req, file, callback) {
+    if (file.mimetype !== 'application/pdf') {
+      return callback(new AppError('Only PDF files are allowed.', 400));
+    }
+    callback(null, true);
+  },
+});
+
 module.exports = upload;
+module.exports.pdfUpload = pdfUpload;

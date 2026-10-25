@@ -63,6 +63,12 @@ async function initializeDb() {
       share_link TEXT NOT NULL,
       message TEXT,
       expires_at TIMESTAMPTZ,
+      paper_public_id TEXT,
+      paper_url TEXT,
+      paper_original_filename TEXT,
+      paper_mime_type TEXT,
+      paper_file_size BIGINT,
+      paper_uploaded_at TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -116,6 +122,42 @@ async function initializeDb() {
         WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'expires_at'
       ) THEN
         ALTER TABLE access_requests ADD COLUMN expires_at TIMESTAMPTZ;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_public_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_public_id TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_url'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_url TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_original_filename'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_original_filename TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_mime_type'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_mime_type TEXT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_file_size'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_file_size BIGINT;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'paper_uploaded_at'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN paper_uploaded_at TIMESTAMPTZ;
       END IF;
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns

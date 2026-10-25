@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 const accessRequestController = require('../controllers/accessRequestController');
 
 const router = express.Router();
@@ -10,5 +11,6 @@ router.get('/received', accessRequestController.listReceived);
 router.get('/sent', accessRequestController.listSent);
 router.patch('/:id', accessRequestController.updateSent);
 router.patch('/:id/status', accessRequestController.updateStatus);
+router.post('/:id/paper', upload.pdfUpload.single('paper'), accessRequestController.uploadPaper);
 
 module.exports = router;

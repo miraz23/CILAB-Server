@@ -33,7 +33,8 @@ async function findReceivedAccessRequests(recipientId) {
     [recipientId]
   );
   const requests = await pool.query(
-    `SELECT ar.id, ar.share_link, ar.message, ar.expires_at, ar.status,
+    `    SELECT ar.id, ar.share_link, ar.message, ar.expires_at,
+           ar.paper_url, ar.paper_original_filename, ar.paper_uploaded_at, ar.status,
             ar.created_at, ar.updated_at, ar.decided_at,
             u.id AS sender_id, u.name AS sender_name, u.email AS sender_email,
             u.role AS sender_role, u.institution AS sender_institution
@@ -54,7 +55,8 @@ async function findSentAccessRequests(senderId) {
     [senderId]
   );
   const requests = await pool.query(
-    `SELECT ar.id, ar.share_link, ar.message, ar.expires_at, ar.status,
+    `    SELECT ar.id, ar.share_link, ar.message, ar.expires_at,
+           ar.paper_url, ar.paper_original_filename, ar.paper_uploaded_at, ar.status,
             ar.created_at, ar.updated_at, ar.decided_at,
             u.id AS recipient_id, u.name AS recipient_name, u.email AS recipient_email,
             u.role AS recipient_role, u.institution AS recipient_institution
@@ -97,10 +99,50 @@ async function updateSentAccessRequest(id, senderId, shareLink, message, expires
   return result.rows[0];
 }
 
+async function uploadReceivedPaper(id, recipientId, paper) {
+  const result = await pool.query(
+    `WITH existing AS (
+      SELECT paper_public_id
+        FROM access_requests
+       WHERE id = $6 AND recipient_id = $7
+    ),
+    updated AS (
+      UPDATE access_requests
+        SET paper_public_id = $1,
+            paper_url = $2,
+            paper_original_filename = $3,
+            paper_mime_type = $4,
+            paper_file_size = $5,
+            paper_uploaded_at = NOW(),
+            status = 'accepted',
+            decided_at = COALESCE(decided_at, NOW()),
+            updated_at = NOW()
+      WHERE id = $6 AND recipient_id = $7
+        AND status IN ('pending', 'accepted')
+        AND (expires_at IS NULL OR expires_at > NOW())
+      RETURNING id, paper_url, paper_original_filename, paper_uploaded_at, status
+    )
+    SELECT updated.*, existing.paper_public_id AS previous_paper_public_id
+      FROM updated
+      LEFT JOIN existing ON TRUE`,
+    [
+      paper.publicId,
+      paper.url,
+      paper.originalFilename,
+      paper.mimeType,
+      paper.fileSize,
+      id,
+      recipientId,
+    ]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   createAccessRequests,
   findReceivedAccessRequests,
   findSentAccessRequests,
   updateAccessRequestStatus,
   updateSentAccessRequest,
+  uploadReceivedPaper,
 };
