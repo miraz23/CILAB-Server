@@ -69,8 +69,9 @@ async function initializeDb() {
       paper_mime_type TEXT,
       paper_file_size BIGINT,
       paper_uploaded_at TIMESTAMPTZ,
+      group_id TEXT,
       status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired')),
+        CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired', 'fulfilled')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       decided_at TIMESTAMPTZ
@@ -184,7 +185,74 @@ async function initializeDb() {
       ) THEN
         ALTER TABLE access_requests ADD COLUMN decided_at TIMESTAMPTZ;
       END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'access_requests' AND column_name = 'group_id'
+      ) THEN
+        ALTER TABLE access_requests ADD COLUMN group_id TEXT;
+      END IF;
     END $$;
+  `);
+  await pool.query(`
+    ALTER TABLE access_requests
+      ALTER COLUMN group_id TYPE TEXT USING group_id::text;
+  `);
+  await pool.query(`
+    DO $$
+    DECLARE
+      constraint_name text;
+    BEGIN
+      FOR constraint_name IN
+        SELECT con.conname
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE nsp.nspname = 'public'
+          AND rel.relname = 'access_requests'
+          AND con.contype = 'c'
+          AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+      LOOP
+        EXECUTE format('ALTER TABLE access_requests DROP CONSTRAINT %I', constraint_name);
+      END LOOP;
+
+      ALTER TABLE access_requests
+        ADD CONSTRAINT access_requests_status_check
+        CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired', 'fulfilled'));
+    END $$;
+  `);
+  await pool.query(`
+    UPDATE access_requests SET group_id = id::text WHERE group_id IS NULL;
+  `);
+  await pool.query(`
+    UPDATE access_requests a
+       SET group_id = clustered.group_id
+      FROM (
+        SELECT sender_id,
+               share_link,
+               date_trunc('second', created_at) AS created_second,
+               MIN(id::text) AS group_id
+          FROM access_requests
+         GROUP BY sender_id, share_link, date_trunc('second', created_at)
+        HAVING COUNT(*) > 1
+      ) clustered
+     WHERE a.sender_id = clustered.sender_id
+       AND a.share_link = clustered.share_link
+       AND date_trunc('second', a.created_at) = clustered.created_second;
+  `);
+  await pool.query(`
+    UPDATE access_requests ar
+       SET status = 'fulfilled',
+           updated_at = NOW(),
+           decided_at = COALESCE(decided_at, NOW())
+     WHERE ar.status = 'pending'
+       AND ar.group_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1
+           FROM access_requests other
+          WHERE other.group_id = ar.group_id
+            AND other.id <> ar.id
+            AND other.status = 'accepted'
+       );
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS access_requests_recipient_idx
@@ -193,6 +261,10 @@ async function initializeDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS access_requests_sender_idx
       ON access_requests (sender_id, created_at DESC);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS access_requests_group_idx
+      ON access_requests (group_id);
   `);
   await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS review_note TEXT`);
   await pool.query(`ALTER TABLE uploads ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`);

@@ -120,6 +120,7 @@ exports.create = catchAsync(async (req, res, next) => {
     senderId: req.user.id,
     recipientIds: userIds,
     requestIds: userIds.map(() => randomUUID()),
+    groupId: randomUUID(),
     shareLink,
     message: message || null,
     expiresAt,
