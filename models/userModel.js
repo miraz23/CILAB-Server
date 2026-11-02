@@ -126,7 +126,14 @@ async function updateLastActive(id) {
 }
 
 async function updateUserProfile(id, changes) {
-  const columnMap = { name: 'name', email: 'email', scholarId: 'scholar_id', institution: 'institution', role: 'role', password: 'password' };
+  const columnMap = {
+    name: 'name',
+    email: 'email',
+    scholarId: 'scholar_id',
+    institution: 'institution',
+    role: 'role',
+    password: 'password',
+  };
   const fields = [];
   const values = [];
   for (const [key, value] of Object.entries(changes)) {
