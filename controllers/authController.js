@@ -1,9 +1,17 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { randomUUID } = require('crypto');
+const { randomBytes, createHash, randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
-const { findUserByEmail, findUserByScholarId, createUser } = require('../models/userModel');
+const {
+  findUserByEmail,
+  findUserByScholarId,
+  createUser,
+  savePasswordResetToken,
+  findUserByPasswordResetToken,
+  updatePasswordWithResetToken,
+} = require('../models/userModel');
+const { sendPasswordResetEmail } = require('../utils/mailer');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
@@ -101,4 +109,44 @@ exports.login = catchAsync(async (req, res, next) => {
     },
     token,
   });
+});
+
+exports.requestPasswordReset = catchAsync(async (req, res, next) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return next(new AppError('Please provide a valid email address.', 400));
+  }
+
+  const user = await findUserByEmail(email);
+  if (user) {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await savePasswordResetToken(user.id, tokenHash, expiresAt);
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    await sendPasswordResetEmail(
+      email,
+      `${clientUrl}/auth/reset-password?token=${encodeURIComponent(token)}`
+    );
+  }
+
+  res.json({
+    success: true,
+    message: 'If an account exists for that email, a password reset link has been sent.',
+  });
+});
+
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const { token, password } = req.body;
+  if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 8) {
+    return next(new AppError('A valid reset token and a password of at least 8 characters are required.', 400));
+  }
+
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const user = await findUserByPasswordResetToken(tokenHash);
+  if (!user) return next(new AppError('This password reset link is invalid or expired.', 400));
+
+  await updatePasswordWithResetToken(user.id, await bcrypt.hash(password, 12));
+  res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
 });

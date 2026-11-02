@@ -153,6 +153,41 @@ async function updateUserProfile(id, changes) {
   return result.rows[0];
 }
 
+async function savePasswordResetToken(userId, tokenHash, expiresAt) {
+  const result = await pool.query(
+    `UPDATE users
+        SET password_reset_token_hash = $1, password_reset_expires_at = $2
+      WHERE id = $3
+      RETURNING id`,
+    [tokenHash, expiresAt, userId]
+  );
+  return result.rows[0];
+}
+
+async function findUserByPasswordResetToken(tokenHash) {
+  const result = await pool.query(
+    `SELECT id, email
+       FROM users
+      WHERE password_reset_token_hash = $1
+        AND password_reset_expires_at > NOW()`,
+    [tokenHash]
+  );
+  return result.rows[0];
+}
+
+async function updatePasswordWithResetToken(userId, passwordHash) {
+  const result = await pool.query(
+    `UPDATE users
+        SET password = $1,
+            password_reset_token_hash = NULL,
+            password_reset_expires_at = NULL
+      WHERE id = $2
+      RETURNING id`,
+    [passwordHash, userId]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   findUserByEmail,
   findUserByScholarId,
@@ -163,4 +198,7 @@ module.exports = {
   getUserById,
   updateLastActive,
   updateUserProfile,
+  savePasswordResetToken,
+  findUserByPasswordResetToken,
+  updatePasswordWithResetToken,
 };
