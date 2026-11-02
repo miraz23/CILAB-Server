@@ -88,3 +88,23 @@ exports.previewPaper = catchAsync(async (req, res, next) => {
   res.setHeader('Content-Disposition', 'inline');
   res.send(Buffer.from(await response.arrayBuffer()));
 });
+
+async function deliverPresentation(req, res, next, disposition) {
+  const upload = await findPublishedUploadById(req.params.id);
+  if (!upload) return next(new AppError('Presentation not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the presentation.', 502));
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/octet-stream');
+  res.setHeader('Content-Disposition', disposition === 'attachment'
+    ? `attachment; filename="${String(upload.original_filename || 'presentation').replace(/[%"'\r\n]/g, '_')}"`
+    : 'inline');
+  res.send(Buffer.from(await response.arrayBuffer()));
+}
+
+exports.downloadPresentation = catchAsync((req, res, next) =>
+  deliverPresentation(req, res, next, 'attachment'));
+
+exports.previewPresentation = catchAsync((req, res, next) =>
+  deliverPresentation(req, res, next, 'inline'));
