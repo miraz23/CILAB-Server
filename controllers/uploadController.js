@@ -1,7 +1,12 @@
 const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
-const { uploadBuffer, destroyResource } = require('../config/cloudinary');
+const {
+  uploadBuffer,
+  destroyResource,
+  getOriginalFilename,
+  getPrivateDownloadUrl,
+} = require('../config/cloudinary');
 const {
   createUpload,
   findUploadsByUser,
@@ -57,8 +62,7 @@ async function handleUpload(req, res, next, type) {
   const cloudinaryResult = await uploadBuffer(req.file.buffer, {
     folder,
     resource_type: 'raw',
-    use_filename: true,
-    unique_filename: true,
+    public_id: getOriginalFilename(req.file.originalname),
     overwrite: false,
   });
 
@@ -84,7 +88,31 @@ exports.uploadPaper = catchAsync((req, res, next) => handleUpload(req, res, next
 exports.uploadPresentation = catchAsync((req, res, next) => handleUpload(req, res, next, 'presentation'));
 exports.getMyUploads = catchAsync(async (req, res) => {
   const uploads = await findUploadsByUser(req.user.id);
-  res.json({ success: true, uploads });
+  res.json({
+    success: true,
+    uploads: uploads.map((upload) => ({
+      ...upload,
+      cloudinary_url: `/api/uploads/${upload.id}/file`,
+    })),
+  });
+});
+
+exports.downloadMyUpload = catchAsync(async (req, res, next) => {
+  const uploads = await findUploadsByUser(req.user.id);
+  const upload = uploads.find((item) => item.id === req.params.id);
+  if (!upload) return next(new AppError('Upload not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) {
+    return next(new AppError('Unable to retrieve the uploaded file.', 502));
+  }
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${getOriginalFilename(upload.original_filename)}"`
+  );
+  res.send(Buffer.from(await response.arrayBuffer()));
 });
 exports.getMyUploadStats = catchAsync(async (req, res) => {
   const stats = await getUploadStatsByUser(req.user.id);

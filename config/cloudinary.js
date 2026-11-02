@@ -25,6 +25,11 @@ function uploadBuffer(buffer, options) {
   });
 }
 
+function getOriginalFilename(filename) {
+  const basename = String(filename || 'upload').split(/[\\/]/).pop() || 'upload';
+  return basename.replace(/[?#%"'\r\n]/g, '_');
+}
+
 function destroyResource(publicId, options = {}) {
   configureCloudinary();
   return new Promise((resolve, reject) => {
@@ -35,4 +40,32 @@ function destroyResource(publicId, options = {}) {
   });
 }
 
-module.exports = { cloudinary, configureCloudinary, uploadBuffer, destroyResource };
+function getSignedDeliveryUrl(publicId, options = {}) {
+  configureCloudinary();
+  return cloudinary.url(publicId, {
+    resource_type: 'raw',
+    type: 'upload',
+    secure: true,
+    sign_url: true,
+    ...options,
+  });
+}
+
+function getPrivateDownloadUrl(publicId) {
+  configureCloudinary();
+  return cloudinary.utils.private_download_url(publicId, null, {
+    resource_type: 'raw',
+    type: 'upload',
+    attachment: false,
+  });
+}
+
+module.exports = {
+  cloudinary,
+  configureCloudinary,
+  uploadBuffer,
+  destroyResource,
+  getOriginalFilename,
+  getSignedDeliveryUrl,
+  getPrivateDownloadUrl,
+};

@@ -2,7 +2,7 @@ const { URL } = require('url');
 const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
-const { uploadBuffer, destroyResource } = require('../config/cloudinary');
+const { uploadBuffer, destroyResource, getOriginalFilename } = require('../config/cloudinary');
 const { getUserById } = require('../models/userModel');
 const {
   createAccessRequests,
@@ -211,8 +211,7 @@ exports.uploadPaper = catchAsync(async (req, res, next) => {
   const cloudinaryResult = await uploadBuffer(req.file.buffer, {
     folder: `cilab/${req.user.id}/access-request-papers`,
     resource_type: 'raw',
-    use_filename: true,
-    unique_filename: true,
+    public_id: getOriginalFilename(req.file.originalname),
     overwrite: false,
   });
 
