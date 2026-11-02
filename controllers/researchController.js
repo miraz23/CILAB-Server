@@ -1,5 +1,7 @@
 const catchAsync = require('../middleware/catchAsync');
-const { findPublishedUploads } = require('../models/uploadModel');
+const { getPrivateDownloadUrl } = require('../config/cloudinary');
+const { findPublishedUploads, findPublishedUploadById } = require('../models/uploadModel');
+const AppError = require('../utils/appError');
 
 function splitAuthors(value, fallback) {
   const authors = typeof value === 'string'
@@ -58,4 +60,31 @@ exports.list = catchAsync(async (req, res) => {
       .filter((upload) => upload.upload_type === 'presentation')
       .map(serializeResearchUpload),
   });
+});
+
+exports.downloadPaper = catchAsync(async (req, res, next) => {
+  const upload = await findPublishedUploadById(req.params.id);
+  if (!upload) return next(new AppError('Paper not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the paper.', 502));
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${String(upload.original_filename || 'paper.pdf').replace(/[%"'\r\n]/g, '_')}"`
+  );
+  res.send(Buffer.from(await response.arrayBuffer()));
+});
+
+exports.previewPaper = catchAsync(async (req, res, next) => {
+  const upload = await findPublishedUploadById(req.params.id);
+  if (!upload) return next(new AppError('Paper not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the paper.', 502));
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  res.send(Buffer.from(await response.arrayBuffer()));
 });

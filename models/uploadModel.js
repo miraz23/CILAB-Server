@@ -69,6 +69,16 @@ async function findPublishedUploads() {
   return result.rows;
 }
 
+async function findPublishedUploadById(id) {
+  const result = await pool.query(
+    `SELECT id, original_filename, mime_type, cloudinary_public_id
+       FROM uploads
+      WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0];
+}
+
 async function getUploadStatsByUser(userId) {
   const result = await pool.query(
     `SELECT
@@ -138,6 +148,7 @@ module.exports = {
   updateUploadByUser,
   deleteUploadByUser,
   findPublishedUploads,
+  findPublishedUploadById,
   getUploadStatsByUser,
   findModerationUploads,
   updateUploadModeration,
