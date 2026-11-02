@@ -75,6 +75,39 @@ async function findPublishedUploads() {
   return result.rows;
 }
 
+async function searchPublishedUploads(search) {
+  const tokens = search.trim().split(/\s+/).filter(Boolean);
+  const values = tokens.map((token) => `%${token}%`);
+  const conditions = tokens.map((_, index) => {
+    const value = `$${index + 1}`;
+    return `(
+      u.title ILIKE ${value}
+      OR COALESCE(usr.name, '') ILIKE ${value}
+      OR COALESCE(u.original_filename, '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'authors', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'category', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'tags', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'abstract', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'description', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'event', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'presentationType', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'publicationLink', '') ILIKE ${value}
+    )`;
+  });
+
+  const result = await pool.query(
+    `SELECT u.id, u.upload_type, u.title, u.metadata, u.cloudinary_url,
+            u.file_size, u.created_at, usr.name AS author_name
+       FROM uploads u
+       JOIN users usr ON usr.id = u.user_id
+      WHERE u.status = 'approved'
+        AND ${conditions.join(' AND ')}
+      ORDER BY u.created_at DESC`,
+    values
+  );
+  return result.rows;
+}
+
 async function findPublishedUploadById(id) {
   const result = await pool.query(
     `SELECT id, original_filename, mime_type, cloudinary_public_id
@@ -154,6 +187,7 @@ module.exports = {
   updateUploadByUser,
   deleteUploadByUser,
   findPublishedUploads,
+  searchPublishedUploads,
   findPublishedUploadById,
   getUploadStatsByUser,
   findModerationUploads,

@@ -1,6 +1,10 @@
 const catchAsync = require('../middleware/catchAsync');
 const { getPrivateDownloadUrl } = require('../config/cloudinary');
-const { findPublishedUploads, findPublishedUploadById } = require('../models/uploadModel');
+const {
+  findPublishedUploads,
+  searchPublishedUploads,
+  findPublishedUploadById,
+} = require('../models/uploadModel');
 const AppError = require('../utils/appError');
 
 function splitAuthors(value, fallback) {
@@ -53,6 +57,21 @@ function serializeResearchUpload(upload) {
 
 exports.list = catchAsync(async (req, res) => {
   const uploads = await findPublishedUploads();
+  res.json({
+    success: true,
+    papers: uploads.filter((upload) => upload.upload_type === 'paper').map(serializeResearchUpload),
+    presentations: uploads
+      .filter((upload) => upload.upload_type === 'presentation')
+      .map(serializeResearchUpload),
+  });
+});
+
+exports.search = catchAsync(async (req, res, next) => {
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (!query) return next(new AppError('A search query is required.', 400));
+  if (query.length > 200) return next(new AppError('Search query is too long.', 400));
+
+  const uploads = await searchPublishedUploads(query);
   res.json({
     success: true,
     papers: uploads.filter((upload) => upload.upload_type === 'paper').map(serializeResearchUpload),
