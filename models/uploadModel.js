@@ -39,7 +39,12 @@ async function findUploadsByUser(userId) {
 async function updateUploadByUser(id, userId, title, metadata) {
   const result = await pool.query(
     `UPDATE uploads
-        SET title = $1, metadata = $2::jsonb
+        SET title = $1,
+            metadata = $2::jsonb,
+            status = 'pending',
+            review_note = NULL,
+            reviewed_at = NULL,
+            reviewed_by = NULL
       WHERE id = $3 AND user_id = $4
       RETURNING id, upload_type, title, metadata, original_filename, mime_type,
                 file_size, cloudinary_url, status, created_at`,
@@ -64,6 +69,7 @@ async function findPublishedUploads() {
             u.file_size, u.created_at, usr.name AS author_name
        FROM uploads u
        JOIN users usr ON usr.id = u.user_id
+      WHERE u.status = 'approved'
       ORDER BY u.created_at DESC`
   );
   return result.rows;
@@ -73,7 +79,7 @@ async function findPublishedUploadById(id) {
   const result = await pool.query(
     `SELECT id, original_filename, mime_type, cloudinary_public_id
        FROM uploads
-      WHERE id = $1`,
+      WHERE id = $1 AND status = 'approved'`,
     [id]
   );
   return result.rows[0];
