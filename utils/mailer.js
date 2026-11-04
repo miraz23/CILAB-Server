@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { renderEmail, logoAttachments } = require('./emailTemplate');
 
 const smtpConfigured = Boolean(
   process.env.SMTP_HOST &&
@@ -30,7 +31,17 @@ async function sendPasswordResetEmail(email, resetUrl) {
     to: email,
     subject: 'Reset your CILab password',
     text: `Use this link to reset your CILab password: ${resetUrl}\n\nThis link expires in one hour.`,
-    html: `<p>Use this link to reset your CILab password:</p><p><a href="${resetUrl}">Reset password</a></p><p>This link expires in one hour.</p>`,
+    attachments: logoAttachments(),
+    html: renderEmail({
+      preheader: 'Reset your CILab password. This link expires in one hour.',
+      title: 'Reset your password',
+      paragraphs: [
+        'We received a request to reset the password for your Computational Intelligence Lab account.',
+        'Click the button below to choose a new password. This link expires in one hour.',
+      ],
+      button: { label: 'Reset password', url: resetUrl },
+      note: "If you didn't request this, you can safely ignore this email. Your password won't change.",
+    }),
   });
 }
 
