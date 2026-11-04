@@ -24,11 +24,6 @@ const GRADIENT = {
 
 const FONT = "Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif";
 
-// Logo is embedded as an inline (CID) attachment so it renders without hosting.
-const LOGO_CID = 'cilab-logo';
-const LOGO_PATH = path.join(__dirname, '..', 'public', 'logo', 'logo.png');
-const logoAttachments = () => [{ filename: 'logo.png', path: LOGO_PATH, cid: LOGO_CID }];
-
 const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -98,4 +93,4 @@ function renderEmail({ preheader = '', title, paragraphs = [], button, note }) {
 </body></html>`;
 }
 
-module.exports = { renderEmail, logoAttachments };
+module.exports = { renderEmail };
