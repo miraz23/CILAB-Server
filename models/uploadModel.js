@@ -84,14 +84,14 @@ async function searchPublishedUploads(search) {
       u.title ILIKE ${value}
       OR COALESCE(usr.name, '') ILIKE ${value}
       OR COALESCE(u.original_filename, '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'authors', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'category', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'tags', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'abstract', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'description', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'event', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'presentationType', '') ILIKE ${value}
-      OR COALESCE(u.metadata->>'publicationLink', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'paper_title', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'paper_category', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'paper_tags', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'paper_abstract', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'presentation_category', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'presentation_event', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'presentation_tags', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'paper_url', '') ILIKE ${value}
     )`;
   });
 
@@ -149,8 +149,8 @@ async function findModerationUploads(filters = {}) {
     values.push(`%${filters.search}%`);
     conditions.push(`(
       u.title ILIKE $${values.length}
-      OR COALESCE(u.metadata->>'category', '') ILIKE $${values.length}
-      OR COALESCE(u.metadata->>'presentationType', '') ILIKE $${values.length}
+      OR COALESCE(u.metadata->>'paper_category', '') ILIKE $${values.length}
+      OR COALESCE(u.metadata->>'presentation_event', '') ILIKE $${values.length}
       OR usr.name ILIKE $${values.length}
     )`);
   }

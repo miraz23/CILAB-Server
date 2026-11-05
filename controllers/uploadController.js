@@ -15,48 +15,51 @@ const {
   deleteUploadByUser,
 } = require('../models/uploadModel');
 
-const paperCategories = new Set([
-  'Machine Learning', 'Computer Vision', 'NLP', 'Graph Neural Networks',
-  'Optimization', 'Robotics', 'Reinforcement Learning', 'Other',
-]);
-const presentationTypes = new Set([
-  'Conference Talk', 'Workshop', 'Seminar', 'Poster Session', 'Demo Session',
-  'Tutorial', 'Keynote', 'Panel Discussion', 'Other',
-]);
-
 function text(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function list(value) {
+  if (Array.isArray(value)) return value.map(text).filter(Boolean);
+  return text(value).split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function boolean(value) {
+  return value === true || value === 'true';
 }
 
 function getMetadata(req, type) {
   return type === 'paper'
     ? {
-        authors: text(req.body.authors),
-        abstract: text(req.body.abstract),
-        category: text(req.body.category),
-        tags: text(req.body.tags),
-        publicationLink: text(req.body.publicationLink),
+        authors_name: list(req.body.authors_name),
+        authors_email: list(req.body.authors_email),
+        paper_category: text(req.body.paper_category),
+        publication_type: text(req.body.publication_type),
+        publication_venue: text(req.body.publication_venue),
+        publisher: text(req.body.publisher),
+        indexed_in: list(req.body.indexed_in),
+        publication_date: text(req.body.publication_date),
+        paper_tags: text(req.body.paper_tags),
+        paper_url: text(req.body.paper_url),
+        paper_abstract: text(req.body.paper_abstract),
+        is_featured: boolean(req.body.is_featured),
       }
     : {
-        event: text(req.body.event),
-        date: text(req.body.date),
-        presentationType: text(req.body.type),
-        description: text(req.body.description),
-        publicationLink: text(req.body.publicationLink),
+        presenter_name: list(req.body.presenter_name),
+        presenter_email: list(req.body.presenter_email),
+        presentation_category: text(req.body.presentation_category),
+        presentation_event: text(req.body.presentation_event),
+        presentation_date: text(req.body.presentation_date),
+        presentation_tags: text(req.body.presentation_tags),
+        paper_url: text(req.body.paper_url),
+        is_featured: boolean(req.body.is_featured),
       };
 }
 
 async function handleUpload(req, res, next, type) {
   if (!req.file) return next(new AppError('A file is required.', 400));
-  const title = text(req.body.title);
+  const title = text(req.body[type === 'paper' ? 'paper_title' : 'presentation_title']);
   if (!title) return next(new AppError(`${type === 'paper' ? 'Paper' : 'Presentation'} title is required.`, 400));
-
-  if (type === 'paper' && !paperCategories.has(text(req.body.category))) {
-    return next(new AppError('Please provide a valid paper category.', 400));
-  }
-  if (type === 'presentation' && !presentationTypes.has(text(req.body.type))) {
-    return next(new AppError('Please provide a valid presentation type.', 400));
-  }
 
   const folder = `cilab/${req.user.id}/${type}s`;
   const cloudinaryResult = await uploadBuffer(req.file.buffer, {
@@ -124,17 +127,16 @@ exports.updateMyUpload = catchAsync(async (req, res, next) => {
   const existing = upload.find((item) => item.id === req.params.id);
   if (!existing) return next(new AppError('Upload not found.', 404));
 
-  const title = text(req.body.title);
   const type = existing.upload_type;
-  const categoryOrType = type === 'paper' ? text(req.body.category) : text(req.body.type);
+  const title = text(req.body[type === 'paper' ? 'paper_title' : 'presentation_title']);
+  const categoryOrType = type === 'paper'
+    ? text(req.body.paper_category)
+    : text(req.body.presentation_event);
   if (!title) {
     return next(new AppError(`${type === 'paper' ? 'Paper' : 'Presentation'} title is required.`, 400));
   }
-  if (type === 'paper' && !paperCategories.has(categoryOrType)) {
-    return next(new AppError('Please provide a valid paper category.', 400));
-  }
-  if (type === 'presentation' && !presentationTypes.has(categoryOrType)) {
-    return next(new AppError('Please provide a valid presentation type.', 400));
+  if (!categoryOrType) {
+    return next(new AppError(`${type === 'paper' ? 'Paper category' : 'Presentation event'} is required.`, 400));
   }
 
   const updated = await updateUploadByUser(req.params.id, req.user.id, title, getMetadata(req, type));

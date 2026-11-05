@@ -8,6 +8,7 @@ const {
 const AppError = require('../utils/appError');
 
 function splitAuthors(value, fallback) {
+  if (Array.isArray(value)) return value.length ? value : [fallback];
   const authors = typeof value === 'string'
     ? value.split(',').map((author) => author.trim()).filter(Boolean)
     : [];
@@ -17,22 +18,27 @@ function splitAuthors(value, fallback) {
 function serializeResearchUpload(upload) {
   const metadata = upload.metadata || {};
   const isPaper = upload.upload_type === 'paper';
-  const authors = splitAuthors(isPaper ? metadata.authors : '', upload.author_name);
+  const authors = splitAuthors(
+    isPaper ? metadata.authors_name : metadata.presenter_name,
+    upload.author_name
+  );
 
   if (isPaper) {
     return {
       id: upload.id,
       title: upload.title,
       authors,
-      venue: metadata.category || '',
-      year: new Date(upload.created_at).getFullYear(),
-      type: 'Early Access',
-      publisher: '',
+      venue: metadata.publication_venue || '',
+      year: metadata.publication_date
+        ? new Date(metadata.publication_date).getFullYear()
+        : new Date(upload.created_at).getFullYear(),
+      type: metadata.publication_type || 'journal',
+      publisher: metadata.publisher || '',
       citedBy: 0,
-      topic: metadata.tags || metadata.category || '',
+      topic: metadata.paper_tags || metadata.paper_category || '',
       access: 'open',
-      abstract: metadata.abstract || undefined,
-      htmlUrl: metadata.publicationLink || undefined,
+      abstract: metadata.paper_abstract || undefined,
+      htmlUrl: metadata.paper_url || undefined,
       pdfUrl: upload.cloudinary_url,
       publishedAt: upload.created_at,
       fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
@@ -43,13 +49,12 @@ function serializeResearchUpload(upload) {
     id: upload.id,
     title: upload.title,
     speakers: authors,
-    event: metadata.event || '',
-    date: metadata.date || new Date(upload.created_at).toISOString().slice(0, 10),
-    type: metadata.presentationType || 'Other',
-    topic: metadata.presentationType || '',
-    abstract: metadata.description || undefined,
+    event: metadata.presentation_event || '',
+    date: metadata.presentation_date || new Date(upload.created_at).toISOString().slice(0, 10),
+    type: metadata.presentation_category || 'Other',
+    topic: metadata.presentation_tags || metadata.presentation_category || '',
     slidesUrl: upload.cloudinary_url,
-    videoUrl: metadata.publicationLink || undefined,
+    videoUrl: metadata.paper_url || undefined,
     publishedAt: upload.created_at,
     fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
   };

@@ -55,8 +55,8 @@ function serializeModerationUpload(upload) {
     contentType: upload.upload_type,
     title: upload.title,
     category: isPaper
-      ? upload.metadata.category || 'Other'
-      : upload.metadata.presentationType || 'Other',
+      ? upload.metadata.paper_category || 'Other'
+      : upload.metadata.presentation_event || 'Other',
     author: {
       id: upload.author_id,
       name: upload.author_name,
