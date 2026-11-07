@@ -3,8 +3,10 @@ const catchAsync = require('../middleware/catchAsync');
 const { findUsers, updateUserAccess } = require('../models/userModel');
 const {
   findModerationUploads,
+  findModerationUploadById,
   updateUploadModeration,
 } = require('../models/uploadModel');
+const { getPrivateDownloadUrl } = require('../config/cloudinary');
 const { getPlatformStats } = require('../models/analyticsModel');
 
 exports.getPlatformStats = catchAsync(async (req, res) => {
@@ -64,6 +66,8 @@ function serializeModerationUpload(upload) {
       institution: upload.author_institution,
     },
     fileUrl: upload.cloudinary_url,
+    fileDownloadUrl: `/api/admin/moderation/${upload.id}/file`,
+    mimeType: upload.mime_type,
     fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
     submittedAt: upload.created_at,
     status: upload.status,
@@ -71,6 +75,21 @@ function serializeModerationUpload(upload) {
     reviewedAt: upload.reviewed_at || undefined,
   };
 }
+
+exports.downloadModerationUpload = catchAsync(async (req, res, next) => {
+  const upload = await findModerationUploadById(req.params.id);
+  if (!upload) return next(new AppError('Upload not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the uploaded file.', 502));
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${String(upload.original_filename || 'upload').replace(/[%"'\r\n]/g, '_')}"`
+  );
+  res.send(Buffer.from(await response.arrayBuffer()));
+});
 
 exports.listModerationUploads = catchAsync(async (req, res) => {
   const uploads = await findModerationUploads({

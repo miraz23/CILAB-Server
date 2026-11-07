@@ -8,6 +8,7 @@ router.get('/analytics', adminController.getPlatformStats);
 router.get('/users', adminController.listUsers);
 router.patch('/users/:id/access', adminController.updateAccess);
 router.get('/moderation', adminController.listModerationUploads);
+router.get('/moderation/:id/file', adminController.downloadModerationUpload);
 router.patch('/moderation/:id', adminController.updateModerationUpload);
 
 module.exports = router;

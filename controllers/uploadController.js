@@ -51,8 +51,8 @@ function getMetadata(req, type) {
         presentation_event: text(req.body.presentation_event),
         presentation_date: text(req.body.presentation_date),
         presentation_tags: text(req.body.presentation_tags),
+        event_name: text(req.body.event_name),
         paper_url: text(req.body.paper_url),
-        is_featured: boolean(req.body.is_featured),
       };
 }
 

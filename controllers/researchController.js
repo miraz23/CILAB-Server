@@ -27,6 +27,7 @@ function serializeResearchUpload(upload) {
     return {
       id: upload.id,
       title: upload.title,
+      featured: metadata.is_featured === true,
       authors,
       venue: metadata.publication_venue || '',
       year: metadata.publication_date
@@ -49,7 +50,7 @@ function serializeResearchUpload(upload) {
     id: upload.id,
     title: upload.title,
     speakers: authors,
-    event: metadata.presentation_event || '',
+    event: metadata.event_name || metadata.presentation_event || '',
     date: metadata.presentation_date || new Date(upload.created_at).toISOString().slice(0, 10),
     type: metadata.presentation_category || 'Other',
     topic: metadata.presentation_tags || metadata.presentation_category || '',

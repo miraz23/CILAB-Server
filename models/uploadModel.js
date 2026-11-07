@@ -90,6 +90,7 @@ async function searchPublishedUploads(search) {
       OR COALESCE(u.metadata->>'paper_abstract', '') ILIKE ${value}
       OR COALESCE(u.metadata->>'presentation_category', '') ILIKE ${value}
       OR COALESCE(u.metadata->>'presentation_event', '') ILIKE ${value}
+      OR COALESCE(u.metadata->>'event_name', '') ILIKE ${value}
       OR COALESCE(u.metadata->>'presentation_tags', '') ILIKE ${value}
       OR COALESCE(u.metadata->>'paper_url', '') ILIKE ${value}
     )`;
@@ -151,13 +152,14 @@ async function findModerationUploads(filters = {}) {
       u.title ILIKE $${values.length}
       OR COALESCE(u.metadata->>'paper_category', '') ILIKE $${values.length}
       OR COALESCE(u.metadata->>'presentation_event', '') ILIKE $${values.length}
+      OR COALESCE(u.metadata->>'event_name', '') ILIKE $${values.length}
       OR usr.name ILIKE $${values.length}
     )`);
   }
 
   const result = await pool.query(
     `SELECT u.id, u.upload_type, u.title, u.metadata, u.original_filename,
-            u.cloudinary_url, u.file_size, u.status, u.created_at,
+            u.mime_type, u.cloudinary_url, u.file_size, u.status, u.created_at,
             u.review_note, u.reviewed_at,
             usr.id AS author_id, usr.name AS author_name,
             usr.role AS author_role, usr.institution AS author_institution
@@ -168,6 +170,16 @@ async function findModerationUploads(filters = {}) {
     values
   );
   return result.rows;
+}
+
+async function findModerationUploadById(id) {
+  const result = await pool.query(
+    `SELECT id, upload_type, original_filename, mime_type, cloudinary_public_id
+       FROM uploads
+      WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0];
 }
 
 async function updateUploadModeration(id, status, note, reviewerId) {
@@ -191,5 +203,6 @@ module.exports = {
   findPublishedUploadById,
   getUploadStatsByUser,
   findModerationUploads,
+  findModerationUploadById,
   updateUploadModeration,
 };
