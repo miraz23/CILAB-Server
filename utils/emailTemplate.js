@@ -24,6 +24,16 @@ const GRADIENT = {
 
 const FONT = "Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif";
 
+function logoAttachments() {
+  return [
+    {
+      filename: 'logo.png',
+      path: path.join(__dirname, '..', 'public', 'logo', 'logo.png'),
+      cid: 'cilab-logo',
+    },
+  ];
+}
+
 const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -93,4 +103,4 @@ function renderEmail({ preheader = '', title, paragraphs = [], button, note }) {
 </body></html>`;
 }
 
-module.exports = { renderEmail };
+module.exports = { renderEmail, logoAttachments };

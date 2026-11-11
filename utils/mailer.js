@@ -45,4 +45,28 @@ async function sendPasswordResetEmail(email, resetUrl) {
   });
 }
 
-module.exports = { sendPasswordResetEmail };
+async function sendRegistrationVerificationEmail(email, verificationUrl) {
+  if (!transporter) {
+    throw new Error('SMTP mail settings are not configured.');
+  }
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: email,
+    subject: 'Verify your CILab account',
+    text: `Verify your CILab account by opening this link: ${verificationUrl}\n\nThis link expires in 24 hours.`,
+    attachments: logoAttachments(),
+    html: renderEmail({
+      preheader: 'Verify your CILab account. This link expires in 24 hours.',
+      title: 'Verify your account',
+      paragraphs: [
+        'Thank you for registering with the Computational Intelligence Lab.',
+        'Click the button below to verify your email address and create your account. This link expires in 24 hours.',
+      ],
+      button: { label: 'Verify email address', url: verificationUrl },
+      note: "If you didn't create this registration, you can safely ignore this email.",
+    }),
+  });
+}
+
+module.exports = { sendPasswordResetEmail, sendRegistrationVerificationEmail };

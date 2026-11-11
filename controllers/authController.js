@@ -6,12 +6,17 @@ const catchAsync = require('../middleware/catchAsync');
 const {
   findUserByEmail,
   findUserByScholarId,
-  createUser,
+  findPendingRegistrationByEmail,
+  findPendingRegistrationByScholarId,
+  createPendingRegistration,
+  deletePendingRegistration,
+  deleteExpiredPendingRegistrations,
+  verifyPendingRegistration,
   savePasswordResetToken,
   findUserByPasswordResetToken,
   updatePasswordWithResetToken,
 } = require('../models/userModel');
-const { sendPasswordResetEmail } = require('../utils/mailer');
+const { sendPasswordResetEmail, sendRegistrationVerificationEmail } = require('../utils/mailer');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
@@ -41,6 +46,7 @@ exports.register = catchAsync(async (req, res, next) => {
 
   const normalizedEmail = email.toLowerCase().trim();
   const normalizedScholarId = String(scholarId).trim();
+  await deleteExpiredPendingRegistrations();
 
   const existingEmail = await findUserByEmail(normalizedEmail);
   if (existingEmail) {
@@ -52,9 +58,19 @@ exports.register = catchAsync(async (req, res, next) => {
     return next(new AppError('Scholar ID is already registered.', 409));
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const pendingEmail = await findPendingRegistrationByEmail(normalizedEmail);
+  if (pendingEmail) {
+    return next(new AppError('A verification email has already been sent to this address.', 409));
+  }
 
-  const newUser = await createUser({
+  const pendingScholarId = await findPendingRegistrationByScholarId(normalizedScholarId);
+  if (pendingScholarId) {
+    return next(new AppError('A verification email has already been sent for this Scholar ID.', 409));
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const verificationToken = randomBytes(32).toString('hex');
+  const pendingRegistration = {
     id: randomUUID(),
     name: String(name).trim(),
     email: normalizedEmail,
@@ -62,12 +78,52 @@ exports.register = catchAsync(async (req, res, next) => {
     scholarId: normalizedScholarId,
     institution: String(institution).trim(),
     role: String(role).trim(),
-    appRole: 'USER',
-  });
+    verificationTokenHash: createHash('sha256').update(verificationToken).digest('hex'),
+    verificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  };
+
+  await createPendingRegistration(pendingRegistration);
+  try {
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    await sendRegistrationVerificationEmail(
+      normalizedEmail,
+      `${clientUrl}/auth/verify-registration?token=${encodeURIComponent(verificationToken)}`
+    );
+  } catch (error) {
+    await deletePendingRegistration(pendingRegistration.id);
+    throw error;
+  }
 
   res.status(201).json({
     success: true,
-    message: 'Account created.',
+    message: 'Verification email sent. Please check your inbox to complete registration.',
+  });
+});
+
+exports.verifyRegistration = catchAsync(async (req, res, next) => {
+  const token = typeof req.body.token === 'string' ? req.body.token : '';
+  if (!token) {
+    return next(new AppError('A verification token is required.', 400));
+  }
+
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  let newUser;
+  try {
+    newUser = await verifyPendingRegistration(tokenHash);
+  } catch (error) {
+    if (error.code === '23505') {
+      return next(new AppError('This registration is no longer available. The email or Scholar ID may already be registered.', 409));
+    }
+    throw error;
+  }
+
+  if (!newUser) {
+    return next(new AppError('This verification link is invalid or expired.', 400));
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Email verified and account created. You can now sign in.',
     userId: newUser.id,
   });
 });

@@ -36,6 +36,103 @@ async function createUser(user) {
   return result.rows[0];
 }
 
+async function findPendingRegistrationByEmail(email) {
+  const result = await pool.query(
+    `SELECT id, name, email, password, scholar_id, institution, role,
+            verification_token_hash, verification_expires_at
+       FROM pending_registrations
+      WHERE email = $1`,
+    [email]
+  );
+  return result.rows[0];
+}
+
+async function findPendingRegistrationByScholarId(scholarId) {
+  const result = await pool.query(
+    `SELECT id, name, email, password, scholar_id, institution, role,
+            verification_token_hash, verification_expires_at
+       FROM pending_registrations
+      WHERE scholar_id = $1`,
+    [scholarId]
+  );
+  return result.rows[0];
+}
+
+async function createPendingRegistration(registration) {
+  const result = await pool.query(
+    `INSERT INTO pending_registrations
+       (id, name, email, password, scholar_id, institution, role,
+        verification_token_hash, verification_expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id`,
+    [
+      registration.id,
+      registration.name,
+      registration.email,
+      registration.password,
+      registration.scholarId,
+      registration.institution,
+      registration.role,
+      registration.verificationTokenHash,
+      registration.verificationExpiresAt,
+    ]
+  );
+  return result.rows[0];
+}
+
+async function deletePendingRegistration(id) {
+  await pool.query('DELETE FROM pending_registrations WHERE id = $1', [id]);
+}
+
+async function deleteExpiredPendingRegistrations() {
+  await pool.query(
+    'DELETE FROM pending_registrations WHERE verification_expires_at <= NOW()'
+  );
+}
+
+async function verifyPendingRegistration(tokenHash) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const pendingResult = await client.query(
+      `SELECT id, name, email, password, scholar_id, institution, role
+         FROM pending_registrations
+        WHERE verification_token_hash = $1
+          AND verification_expires_at > NOW()
+        FOR UPDATE`,
+      [tokenHash]
+    );
+    const pending = pendingResult.rows[0];
+    if (!pending) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const userResult = await client.query(
+      `INSERT INTO users (id, name, email, password, scholar_id, institution, role, app_role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'USER')
+       RETURNING id`,
+      [
+        pending.id,
+        pending.name,
+        pending.email,
+        pending.password,
+        pending.scholar_id,
+        pending.institution,
+        pending.role,
+      ]
+    );
+    await client.query('DELETE FROM pending_registrations WHERE id = $1', [pending.id]);
+    await client.query('COMMIT');
+    return userResult.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function findUsers(filters = {}) {
   const values = [];
   const conditions = [];
@@ -192,6 +289,12 @@ module.exports = {
   findUserByEmail,
   findUserByScholarId,
   createUser,
+  findPendingRegistrationByEmail,
+  findPendingRegistrationByScholarId,
+  createPendingRegistration,
+  deletePendingRegistration,
+  deleteExpiredPendingRegistrations,
+  verifyPendingRegistration,
   findUsers,
   findPublicMembers,
   updateUserAccess,

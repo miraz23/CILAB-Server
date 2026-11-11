@@ -33,6 +33,20 @@ async function initializeDb() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token_hash TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pending_registrations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      scholar_id TEXT NOT NULL UNIQUE,
+      institution TEXT NOT NULL,
+      role TEXT NOT NULL,
+      verification_token_hash TEXT NOT NULL UNIQUE,
+      verification_expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
   await pool.query(
     `UPDATE users SET app_role = 'USER' WHERE app_role IS NULL OR app_role NOT IN ('USER', 'ADMIN')`
   );
