@@ -38,11 +38,11 @@ exports.listUsers = catchAsync(async (req, res) => {
 
 exports.updateAccess = catchAsync(async (req, res, next) => {
   const { appRole, status } = req.body;
-  if ((appRole !== undefined && !['USER', 'ADMIN'].includes(appRole)) ||
+  if ((appRole !== undefined && !['USER', 'MEMBER', 'ADMIN'].includes(appRole)) ||
       (status !== undefined && !['active', 'pending', 'suspended'].includes(status))) {
     return next(new AppError('Invalid access role or status.', 400));
   }
-  if (req.params.id === req.user.id && (appRole === 'USER' || status === 'suspended')) {
+  if (req.params.id === req.user.id && (appRole !== undefined && appRole !== 'ADMIN' || status === 'suspended')) {
     return next(new AppError('You cannot remove your own administrator access.', 400));
   }
   const user = await updateUserAccess(req.params.id, { appRole, status });

@@ -104,7 +104,8 @@ async function findSentAccessRequests(senderId) {
        FROM access_requests ar
        JOIN users u ON u.id = ar.recipient_id
       WHERE ar.sender_id = $1
-      ORDER BY ar.created_at DESC`,
+         AND u.app_role = 'MEMBER'
+       ORDER BY ar.created_at DESC`,
     [senderId]
   );
   return requests.rows;

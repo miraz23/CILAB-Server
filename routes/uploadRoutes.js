@@ -1,16 +1,15 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireUploadAccess } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const uploadController = require('../controllers/uploadController');
 
 const router = express.Router();
-router.use(authenticate);
-router.post('/papers/upload', upload.pdfUpload.single('paper_file'), uploadController.uploadPaper);
-router.post('/presentations/upload', upload.single('presentation_file'), uploadController.uploadPresentation);
-router.get('/uploads/stats', uploadController.getMyUploadStats);
-router.get('/uploads', uploadController.getMyUploads);
-router.get('/uploads/:id/file', uploadController.downloadMyUpload);
-router.patch('/uploads/:id', uploadController.updateMyUpload);
-router.delete('/uploads/:id', uploadController.deleteMyUpload);
+router.post('/papers/upload', authenticate, requireUploadAccess, upload.pdfUpload.single('paper_file'), uploadController.uploadPaper);
+router.post('/presentations/upload', authenticate, requireUploadAccess, upload.single('presentation_file'), uploadController.uploadPresentation);
+router.get('/uploads/stats', authenticate, requireUploadAccess, uploadController.getMyUploadStats);
+router.get('/uploads', authenticate, requireUploadAccess, uploadController.getMyUploads);
+router.get('/uploads/:id/file', authenticate, requireUploadAccess, uploadController.downloadMyUpload);
+router.patch('/uploads/:id', authenticate, requireUploadAccess, uploadController.updateMyUpload);
+router.delete('/uploads/:id', authenticate, requireUploadAccess, uploadController.deleteMyUpload);
 
 module.exports = router;

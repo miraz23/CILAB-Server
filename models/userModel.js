@@ -148,7 +148,7 @@ async function findUsers(filters = {}) {
   if (filters.status && ['active', 'pending', 'suspended'].includes(filters.status)) {
     addCondition('status =', filters.status);
   }
-  if (filters.appRole && ['USER', 'ADMIN'].includes(filters.appRole)) {
+  if (filters.appRole && ['USER', 'MEMBER', 'ADMIN'].includes(filters.appRole)) {
     addCondition('app_role =', filters.appRole);
   }
   if (filters.academicRole) {

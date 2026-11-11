@@ -30,4 +30,18 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { authenticate, requireAdmin };
+function requireUploadAccess(req, res, next) {
+  if (!req.user || !['MEMBER', 'ADMIN'].includes(req.user.app_role)) {
+    return next(new AppError('Member access is required for uploads.', 403));
+  }
+  return next();
+}
+
+function requireMemberAccess(req, res, next) {
+  if (!req.user || !['MEMBER', 'ADMIN'].includes(req.user.app_role)) {
+    return next(new AppError('Member access is required for received requests.', 403));
+  }
+  return next();
+}
+
+module.exports = { authenticate, requireAdmin, requireUploadAccess, requireMemberAccess };

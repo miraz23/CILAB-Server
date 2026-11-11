@@ -3,7 +3,7 @@ const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
 const { uploadBuffer, destroyResource, getOriginalFilename } = require('../config/cloudinary');
-const { getUserById } = require('../models/userModel');
+const { getUserById, findUsers } = require('../models/userModel');
 const {
   createAccessRequests,
   findReceivedAccessRequests,
@@ -112,14 +112,25 @@ exports.create = catchAsync(async (req, res, next) => {
     expiresAt = parsedExpiry.toISOString();
   }
 
-  const recipients = await Promise.all(userIds.map((id) => getUserById(id)));
-  if (recipients.some((user) => !user || user.status === 'suspended')) {
+  const selectedRecipients = await Promise.all(userIds.map((id) => getUserById(id)));
+  if (selectedRecipients.some((user) => !user || user.status === 'suspended')) {
     return next(new AppError('One or more recipients could not be found.', 404));
   }
+  if (selectedRecipients.some((user) => user.app_role !== 'MEMBER')) {
+    return next(new AppError('Access requests can only be sent to members.', 403));
+  }
+
+  const admins = await findUsers({ status: 'active', appRole: 'ADMIN' });
+  const recipientIds = [
+    ...userIds,
+    ...admins
+      .map((admin) => admin.id)
+      .filter((adminId) => adminId !== req.user.id && !userIds.includes(adminId)),
+  ];
   const requests = await createAccessRequests({
     senderId: req.user.id,
-    recipientIds: userIds,
-    requestIds: userIds.map(() => randomUUID()),
+    recipientIds,
+    requestIds: recipientIds.map(() => randomUUID()),
     groupId: randomUUID(),
     shareLink,
     message: message || null,

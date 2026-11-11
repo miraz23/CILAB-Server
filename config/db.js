@@ -48,7 +48,7 @@ async function initializeDb() {
     )
   `);
   await pool.query(
-    `UPDATE users SET app_role = 'USER' WHERE app_role IS NULL OR app_role NOT IN ('USER', 'ADMIN')`
+    `UPDATE users SET app_role = 'USER' WHERE app_role IS NULL OR app_role NOT IN ('USER', 'MEMBER', 'ADMIN')`
   );
   await pool.query(
     `UPDATE users SET status = 'active' WHERE status IS NULL OR status NOT IN ('active', 'pending', 'suspended')`

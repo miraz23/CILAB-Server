@@ -28,11 +28,12 @@ function serializeCollaborator(user) {
     email: user.email,
     institution: user.institution,
     role: user.role,
+    appRole: user.app_role,
   };
 }
 
 exports.listCollaborators = catchAsync(async (req, res) => {
-  const users = await findUsers({ ...req.query, status: 'active', sort: 'name' });
+  const users = await findUsers({ ...req.query, status: 'active', appRole: 'MEMBER', sort: 'name' });
   const collaborators = users
     .filter((user) => user.id !== req.user.id)
     .map(serializeCollaborator);
