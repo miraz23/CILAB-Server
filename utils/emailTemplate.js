@@ -47,13 +47,20 @@ function siteUrl() {
  * @param {string} opts.title      Heading inside the card
  * @param {string[]} opts.paragraphs  Body paragraphs (plain text, escaped)
  * @param {{label:string,url:string}} [opts.button]  Primary call to action
+ * @param {{label:string,url:string}} [opts.secondaryLink]  Secondary text link
  * @param {string} [opts.note]     Small print under the button
  */
-function renderEmail({ preheader = '', title, paragraphs = [], button, note }) {
+function renderEmail({ preheader = '', title, paragraphs = [], button, secondaryLink, note }) {
   const base = siteUrl();
   const body = paragraphs
     .map((p) => `<p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:${BRAND.text};">${escapeHtml(p)}</p>`)
     .join('');
+
+  const secondary = secondaryLink
+    ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:${BRAND.text};">
+         <a href="${escapeHtml(secondaryLink.url)}" style="color:${BRAND.accent};font-weight:600;">${escapeHtml(secondaryLink.label)}</a>
+       </p>`
+    : '';
 
   const cta = button
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 8px;"><tr>
@@ -91,7 +98,7 @@ function renderEmail({ preheader = '', title, paragraphs = [], button, note }) {
     <tr><td height="4" style="height:4px;line-height:4px;font-size:0;background-color:${BRAND.primary};background-image:${GRADIENT.accent};">&nbsp;</td></tr>
     <tr><td style="background:${BRAND.card};padding:48px 36px 44px;font-family:${FONT};">
       <h1 style="margin:0 0 28px;font-size:26px;line-height:1.3;font-weight:700;letter-spacing:-0.3px;color:${BRAND.primaryDark};">${escapeHtml(title)}</h1>
-      ${body}${cta}${small}
+      ${body}${cta}${secondary}${small}
     </td></tr>
     <tr><td bgcolor="${BRAND.primaryDeep}" style="background-color:${BRAND.primaryDeep};background-image:${GRADIENT.footer};border-radius:0 0 14px 14px;padding:30px 36px;text-align:center;font-family:${FONT};font-size:12px;line-height:1.8;color:#b9c48f;">
       ${link('/', 'Home')}${link('/news', 'News')}${link('/research/papers', 'Papers')}${link('/schedule', 'Schedule')}

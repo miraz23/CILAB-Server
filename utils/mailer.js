@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { renderEmail, logoAttachments } = require('./emailTemplate');
+const { renderEmail } = require('./emailTemplate');
 
 const smtpConfigured = Boolean(
   process.env.SMTP_HOST &&
@@ -31,7 +31,6 @@ async function sendPasswordResetEmail(email, resetUrl) {
     to: email,
     subject: 'Reset your CILab password',
     text: `Use this link to reset your CILab password: ${resetUrl}\n\nThis link expires in one hour.`,
-    attachments: logoAttachments(),
     html: renderEmail({
       preheader: 'Reset your CILab password. This link expires in one hour.',
       title: 'Reset your password',
@@ -55,7 +54,6 @@ async function sendRegistrationVerificationEmail(email, verificationUrl) {
     to: email,
     subject: 'Verify your CILab account',
     text: `Verify your CILab account by opening this link: ${verificationUrl}\n\nThis link expires in 24 hours.`,
-    attachments: logoAttachments(),
     html: renderEmail({
       preheader: 'Verify your CILab account. This link expires in 24 hours.',
       title: 'Verify your account',
@@ -82,10 +80,11 @@ async function sendAccessRequestEmail({
   }
 
   const expiryText = expiresAt
-    ? `This access request expires on ${new Date(expiresAt).toLocaleString()}.`
+    ? `This access request expires on ${new Date(expiresAt).toLocaleDateString()}.`
     : 'This access request does not have an expiration date.';
   const senderText = senderName || 'A CILab member';
   const greeting = recipientName ? `Hello ${recipientName},` : 'Hello,';
+  const receivedRequestsUrl = `${(process.env.CLIENT_URL || 'https://computational-intelligence-lab.vercel.app').replace(/\/$/, '')}/dashboard/paper-access/received-requests`;
   const paragraphs = [
     greeting,
     `${senderText} has sent you an access request through the Computational Intelligence Lab.`,
@@ -96,13 +95,13 @@ async function sendAccessRequestEmail({
     from: process.env.MAIL_FROM,
     to: email,
     subject: `${senderText} sent you an access request`,
-    text: `${paragraphs.join('\n\n')}\n\nOpen the shared link: ${shareLink}`,
-    attachments: logoAttachments(),
+    text: `${paragraphs.join('\n\n')}\n\nOpen the shared link: ${shareLink}\n\nUpload the requested paper in Received Requests: ${receivedRequestsUrl}`,
     html: renderEmail({
       preheader: `${senderText} sent you an access request.`,
       title: 'New access request',
       paragraphs,
       button: { label: 'Open shared link', url: shareLink },
+      secondaryLink: { label: 'Upload the requested paper in Received Requests', url: receivedRequestsUrl },
       note: expiryText,
     }),
   });
