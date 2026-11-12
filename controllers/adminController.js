@@ -67,8 +67,10 @@ function serializeModerationUpload(upload) {
     },
     fileUrl: upload.cloudinary_url,
     fileDownloadUrl: `/api/admin/moderation/${upload.id}/file`,
+    originalFilename: upload.original_filename,
     mimeType: upload.mime_type,
     fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
+    metadata: upload.metadata || {},
     submittedAt: upload.created_at,
     status: upload.status,
     reviewNote: upload.review_note || undefined,
@@ -88,6 +90,18 @@ exports.downloadModerationUpload = catchAsync(async (req, res, next) => {
     'Content-Disposition',
     `attachment; filename="${String(upload.original_filename || 'upload').replace(/[%"'\r\n]/g, '_')}"`
   );
+  res.send(Buffer.from(await response.arrayBuffer()));
+});
+
+exports.previewModerationUpload = catchAsync(async (req, res, next) => {
+  const upload = await findModerationUploadById(req.params.id);
+  if (!upload) return next(new AppError('Upload not found.', 404));
+
+  const response = await fetch(getPrivateDownloadUrl(upload.cloudinary_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the uploaded file.', 502));
+
+  res.setHeader('Content-Type', upload.mime_type || 'application/octet-stream');
+  res.setHeader('Content-Disposition', 'inline');
   res.send(Buffer.from(await response.arrayBuffer()));
 });
 

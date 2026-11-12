@@ -53,6 +53,7 @@ function getMetadata(req, type) {
         presentation_tags: text(req.body.presentation_tags),
         event_name: text(req.body.event_name),
         paper_url: text(req.body.paper_url),
+        presentation_description: text(req.body.presentation_description),
       };
 }
 

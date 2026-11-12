@@ -64,6 +64,7 @@ async function findUploadsByUser(userId, email) {
   const result = await pool.query(
     `SELECT id, upload_type, title, metadata, original_filename, mime_type,
             file_size, cloudinary_public_id, cloudinary_url, status, created_at,
+            review_note,
             user_id = $1 AS is_owner
        FROM uploads u
       WHERE ${ownershipCondition}
@@ -106,7 +107,7 @@ async function updateUploadByUser(id, userId, email, title, metadata, file = nul
             reviewed_by = CASE WHEN $11 THEN $12 ELSE NULL END
       WHERE u.id = $8 AND ${ownershipCondition}
       RETURNING id, upload_type, title, metadata, original_filename, mime_type,
-                file_size, cloudinary_public_id, cloudinary_url, status, created_at`,
+          file_size, cloudinary_public_id, cloudinary_url, status, review_note, created_at`,
     values
   );
   return result.rows[0];

@@ -9,6 +9,7 @@ router.get('/users', adminController.listUsers);
 router.patch('/users/:id/access', adminController.updateAccess);
 router.get('/moderation', adminController.listModerationUploads);
 router.get('/moderation/:id/file', adminController.downloadModerationUpload);
+router.get('/moderation/:id/preview', adminController.previewModerationUpload);
 router.patch('/moderation/:id', adminController.updateModerationUpload);
 
 module.exports = router;
