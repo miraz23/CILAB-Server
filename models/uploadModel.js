@@ -24,41 +24,89 @@ async function createUpload(upload) {
   return result.rows[0];
 }
 
-async function findUploadsByUser(userId) {
+function authoredByEmailCondition(emailParameter = '$2') {
+  return `(
+    EXISTS (
+      SELECT 1
+        FROM jsonb_array_elements_text(
+          CASE
+            WHEN jsonb_typeof(u.metadata->'authors_email') = 'array'
+            THEN u.metadata->'authors_email'
+            ELSE '[]'::jsonb
+          END
+        ) AS author_email(value)
+       WHERE lower(trim(author_email.value)) = lower(trim(${emailParameter}))
+    )
+    OR EXISTS (
+      SELECT 1
+        FROM jsonb_array_elements_text(
+          CASE
+            WHEN jsonb_typeof(u.metadata->'presenter_email') = 'array'
+            THEN u.metadata->'presenter_email'
+            ELSE '[]'::jsonb
+          END
+        ) AS presenter_email(value)
+       WHERE lower(trim(presenter_email.value)) = lower(trim(${emailParameter}))
+    )
+  )`;
+}
+
+async function findUploadsByUser(userId, email) {
+  const canMatchAuthor = typeof email === 'string' && email.trim().length > 0;
+  const values = canMatchAuthor ? [userId, email] : [userId];
+  const ownershipCondition = canMatchAuthor
+    ? `(u.user_id = $1 OR ${authoredByEmailCondition()})`
+    : 'u.user_id = $1';
+
   const result = await pool.query(
     `SELECT id, upload_type, title, metadata, original_filename, mime_type,
-            file_size, cloudinary_public_id, cloudinary_url, status, created_at
-       FROM uploads
-      WHERE user_id = $1
+            file_size, cloudinary_public_id, cloudinary_url, status, created_at,
+            user_id = $1 AS is_owner
+       FROM uploads u
+      WHERE ${ownershipCondition}
       ORDER BY created_at DESC`,
-    [userId]
+    values
   );
   return result.rows;
 }
 
-async function updateUploadByUser(id, userId, title, metadata) {
+async function updateUploadByUser(id, userId, email, title, metadata) {
+  const canMatchAuthor = typeof email === 'string' && email.trim().length > 0;
+  const ownershipCondition = canMatchAuthor
+    ? `(u.user_id = $4 OR ${authoredByEmailCondition('$5')})`
+    : 'u.user_id = $4';
+  const values = canMatchAuthor
+    ? [title, JSON.stringify(metadata), id, userId, email]
+    : [title, JSON.stringify(metadata), id, userId];
+
   const result = await pool.query(
-    `UPDATE uploads
+    `UPDATE uploads AS u
         SET title = $1,
             metadata = $2::jsonb,
             status = 'pending',
             review_note = NULL,
             reviewed_at = NULL,
             reviewed_by = NULL
-      WHERE id = $3 AND user_id = $4
+      WHERE u.id = $3 AND ${ownershipCondition}
       RETURNING id, upload_type, title, metadata, original_filename, mime_type,
                 file_size, cloudinary_url, status, created_at`,
-    [title, JSON.stringify(metadata), id, userId]
+    values
   );
   return result.rows[0];
 }
 
-async function deleteUploadByUser(id, userId) {
+async function deleteUploadByUser(id, userId, email) {
+  const canMatchAuthor = typeof email === 'string' && email.trim().length > 0;
+  const ownershipCondition = canMatchAuthor
+    ? `(u.user_id = $2 OR ${authoredByEmailCondition('$3')})`
+    : 'u.user_id = $2';
+  const values = canMatchAuthor ? [id, userId, email] : [id, userId];
+
   const result = await pool.query(
-    `DELETE FROM uploads
-      WHERE id = $1 AND user_id = $2
+    `DELETE FROM uploads AS u
+      WHERE u.id = $1 AND ${ownershipCondition}
       RETURNING id, cloudinary_public_id, upload_type`,
-    [id, userId]
+    values
   );
   return result.rows[0];
 }
@@ -119,17 +167,23 @@ async function findPublishedUploadById(id) {
   return result.rows[0];
 }
 
-async function getUploadStatsByUser(userId) {
+async function getUploadStatsByUser(userId, email) {
+  const canMatchAuthor = typeof email === 'string' && email.trim().length > 0;
+  const values = canMatchAuthor ? [userId, email] : [userId];
+  const ownershipCondition = canMatchAuthor
+    ? `(u.user_id = $1 OR ${authoredByEmailCondition()})`
+    : 'u.user_id = $1';
+
   const result = await pool.query(
     `SELECT
-       COUNT(*) FILTER (WHERE upload_type = 'paper')::int AS papers,
-       COUNT(*) FILTER (WHERE upload_type = 'presentation')::int AS presentations,
-       COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
-       COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
-       COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected
-       FROM uploads
-      WHERE user_id = $1`,
-    [userId]
+       COUNT(*) FILTER (WHERE u.upload_type = 'paper')::int AS papers,
+       COUNT(*) FILTER (WHERE u.upload_type = 'presentation')::int AS presentations,
+       COUNT(*) FILTER (WHERE u.status = 'pending')::int AS pending,
+       COUNT(*) FILTER (WHERE u.status = 'approved')::int AS approved,
+       COUNT(*) FILTER (WHERE u.status = 'rejected')::int AS rejected
+       FROM uploads u
+      WHERE ${ownershipCondition}`,
+    values
   );
   return { ...result.rows[0], totalDownloads: 0 };
 }

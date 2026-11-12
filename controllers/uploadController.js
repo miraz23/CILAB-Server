@@ -90,7 +90,7 @@ async function handleUpload(req, res, next, type) {
 exports.uploadPaper = catchAsync((req, res, next) => handleUpload(req, res, next, 'paper'));
 exports.uploadPresentation = catchAsync((req, res, next) => handleUpload(req, res, next, 'presentation'));
 exports.getMyUploads = catchAsync(async (req, res) => {
-  const uploads = await findUploadsByUser(req.user.id);
+  const uploads = await findUploadsByUser(req.user.id, req.user.email);
   res.json({
     success: true,
     uploads: uploads.map((upload) => ({
@@ -101,7 +101,7 @@ exports.getMyUploads = catchAsync(async (req, res) => {
 });
 
 exports.downloadMyUpload = catchAsync(async (req, res, next) => {
-  const uploads = await findUploadsByUser(req.user.id);
+  const uploads = await findUploadsByUser(req.user.id, req.user.email);
   const upload = uploads.find((item) => item.id === req.params.id);
   if (!upload) return next(new AppError('Upload not found.', 404));
 
@@ -118,12 +118,12 @@ exports.downloadMyUpload = catchAsync(async (req, res, next) => {
   res.send(Buffer.from(await response.arrayBuffer()));
 });
 exports.getMyUploadStats = catchAsync(async (req, res) => {
-  const stats = await getUploadStatsByUser(req.user.id);
+  const stats = await getUploadStatsByUser(req.user.id, req.user.email);
   res.json({ success: true, stats });
 });
 
 exports.updateMyUpload = catchAsync(async (req, res, next) => {
-  const upload = await findUploadsByUser(req.user.id);
+  const upload = await findUploadsByUser(req.user.id, req.user.email);
   const existing = upload.find((item) => item.id === req.params.id);
   if (!existing) return next(new AppError('Upload not found.', 404));
 
@@ -139,16 +139,22 @@ exports.updateMyUpload = catchAsync(async (req, res, next) => {
     return next(new AppError(`${type === 'paper' ? 'Paper category' : 'Presentation event'} is required.`, 400));
   }
 
-  const updated = await updateUploadByUser(req.params.id, req.user.id, title, getMetadata(req, type));
+  const updated = await updateUploadByUser(
+    req.params.id,
+    req.user.id,
+    req.user.email,
+    title,
+    getMetadata(req, type)
+  );
   res.json({ success: true, message: 'Upload updated successfully.', upload: updated });
 });
 
 exports.deleteMyUpload = catchAsync(async (req, res, next) => {
-  const uploads = await findUploadsByUser(req.user.id);
+  const uploads = await findUploadsByUser(req.user.id, req.user.email);
   const existing = uploads.find((item) => item.id === req.params.id);
   if (!existing) return next(new AppError('Upload not found.', 404));
 
   await destroyResource(existing.cloudinary_public_id, { resource_type: 'raw' });
-  await deleteUploadByUser(req.params.id, req.user.id);
+  await deleteUploadByUser(req.params.id, req.user.id, req.user.email);
   res.json({ success: true, message: 'Upload deleted successfully.' });
 });
