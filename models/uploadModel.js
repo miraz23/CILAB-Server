@@ -4,8 +4,9 @@ async function createUpload(upload) {
   const result = await pool.query(
     `INSERT INTO uploads (
        id, user_id, upload_type, title, metadata, original_filename, mime_type,
-       file_size, cloudinary_public_id, cloudinary_url
-     ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)
+       file_size, cloudinary_public_id, cloudinary_url, status, reviewed_at, reviewed_by
+     ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11,
+               CASE WHEN $11 = 'approved' THEN NOW() ELSE NULL END, $12)
      RETURNING id, upload_type, title, metadata, original_filename, mime_type,
                file_size, cloudinary_public_id, cloudinary_url, status, created_at`,
     [
@@ -19,6 +20,8 @@ async function createUpload(upload) {
       upload.fileSize,
       upload.publicId,
       upload.url,
+      upload.status || 'pending',
+      upload.reviewedBy || null,
     ]
   );
   return result.rows[0];
@@ -70,26 +73,40 @@ async function findUploadsByUser(userId, email) {
   return result.rows;
 }
 
-async function updateUploadByUser(id, userId, email, title, metadata) {
+async function updateUploadByUser(id, userId, email, title, metadata, file = null, isAdmin = false, reviewerId = null) {
   const canMatchAuthor = typeof email === 'string' && email.trim().length > 0;
   const ownershipCondition = canMatchAuthor
-    ? `(u.user_id = $4 OR ${authoredByEmailCondition('$5')})`
-    : 'u.user_id = $4';
-  const values = canMatchAuthor
-    ? [title, JSON.stringify(metadata), id, userId, email]
-    : [title, JSON.stringify(metadata), id, userId];
+    ? `(u.user_id = $9 OR ${authoredByEmailCondition('$10')})`
+    : 'u.user_id = $9';
+  const values = [
+    title,
+    JSON.stringify(metadata),
+    file?.originalFilename || null,
+    file?.mimeType || null,
+    file?.fileSize || null,
+    file?.publicId || null,
+    file?.url || null,
+    id,
+    userId,
+  ];
+  values.push(canMatchAuthor ? email : null, isAdmin, reviewerId);
 
   const result = await pool.query(
     `UPDATE uploads AS u
         SET title = $1,
             metadata = $2::jsonb,
-            status = 'pending',
+            original_filename = COALESCE($3, u.original_filename),
+            mime_type = COALESCE($4, u.mime_type),
+            file_size = COALESCE($5, u.file_size),
+            cloudinary_public_id = COALESCE($6, u.cloudinary_public_id),
+            cloudinary_url = COALESCE($7, u.cloudinary_url),
+            status = CASE WHEN $11 THEN 'approved' ELSE 'pending' END,
             review_note = NULL,
-            reviewed_at = NULL,
-            reviewed_by = NULL
-      WHERE u.id = $3 AND ${ownershipCondition}
+            reviewed_at = CASE WHEN $11 THEN NOW() ELSE NULL END,
+            reviewed_by = CASE WHEN $11 THEN $12 ELSE NULL END
+      WHERE u.id = $8 AND ${ownershipCondition}
       RETURNING id, upload_type, title, metadata, original_filename, mime_type,
-                file_size, cloudinary_url, status, created_at`,
+                file_size, cloudinary_public_id, cloudinary_url, status, created_at`,
     values
   );
   return result.rows[0];
