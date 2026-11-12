@@ -54,6 +54,7 @@ function serializeResearchUpload(upload) {
     date: metadata.presentation_date || new Date(upload.created_at).toISOString().slice(0, 10),
     type: metadata.presentation_category || 'Other',
     topic: metadata.presentation_tags || metadata.presentation_category || '',
+    description: metadata.presentation_description || undefined,
     slidesUrl: upload.cloudinary_url,
     videoUrl: metadata.paper_url || undefined,
     publishedAt: upload.created_at,
