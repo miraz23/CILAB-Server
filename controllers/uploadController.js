@@ -124,8 +124,9 @@ exports.updateMyUpload = catchAsync(async (req, res, next) => {
   const upload = await findUploadsByUser(req.user.id, req.user.email);
   const existing = upload.find((item) => item.id === req.params.id);
   if (!existing) return next(new AppError('Upload not found.', 404));
-  if (req.file && existing.upload_type !== 'paper') {
-    return next(new AppError('Only paper PDFs can be replaced.', 400));
+  const replacementFile = req.files?.paper_file?.[0] || req.files?.presentation_file?.[0];
+  if (replacementFile && existing.upload_type === 'paper' && replacementFile.mimetype !== 'application/pdf') {
+    return next(new AppError('Only PDF files can replace a paper.', 400));
   }
 
   const type = existing.upload_type;
@@ -141,17 +142,17 @@ exports.updateMyUpload = catchAsync(async (req, res, next) => {
   }
 
   let replacement = null;
-  if (req.file) {
-    const cloudinaryResult = await uploadBuffer(req.file.buffer, {
-      folder: `cilab/${req.user.id}/papers`,
+  if (replacementFile) {
+    const cloudinaryResult = await uploadBuffer(replacementFile.buffer, {
+      folder: `cilab/${req.user.id}/${existing.upload_type}s`,
       resource_type: 'raw',
       public_id: `${existing.cloudinary_public_id}-replacement-${randomUUID()}`,
       overwrite: false,
     });
     replacement = {
-      originalFilename: req.file.originalname,
-      mimeType: req.file.mimetype,
-      fileSize: req.file.size,
+      originalFilename: replacementFile.originalname,
+      mimeType: replacementFile.mimetype,
+      fileSize: replacementFile.size,
       publicId: cloudinaryResult.public_id,
       url: cloudinaryResult.secure_url,
     };

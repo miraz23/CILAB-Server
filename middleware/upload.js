@@ -31,3 +31,7 @@ const pdfUpload = multer({
 
 module.exports = upload;
 module.exports.pdfUpload = pdfUpload;
+module.exports.replacementUpload = upload.fields([
+  { name: 'paper_file', maxCount: 1 },
+  { name: 'presentation_file', maxCount: 1 },
+]);

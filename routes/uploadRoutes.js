@@ -9,7 +9,7 @@ router.post('/presentations/upload', authenticate, requireUploadAccess, upload.s
 router.get('/uploads/stats', authenticate, requireUploadAccess, uploadController.getMyUploadStats);
 router.get('/uploads', authenticate, requireUploadAccess, uploadController.getMyUploads);
 router.get('/uploads/:id/file', authenticate, requireUploadAccess, uploadController.downloadMyUpload);
-router.patch('/uploads/:id', authenticate, requireUploadAccess, upload.pdfUpload.single('paper_file'), uploadController.updateMyUpload);
+router.patch('/uploads/:id', authenticate, requireUploadAccess, upload.replacementUpload, uploadController.updateMyUpload);
 router.delete('/uploads/:id', authenticate, requireUploadAccess, uploadController.deleteMyUpload);
 
 module.exports = router;
