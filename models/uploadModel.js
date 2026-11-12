@@ -95,7 +95,15 @@ async function updateUploadByUser(id, userId, email, title, metadata, file = nul
   const result = await pool.query(
     `UPDATE uploads AS u
         SET title = $1,
-            metadata = $2::jsonb,
+            metadata = CASE
+              WHEN $2::jsonb ? 'is_featured' THEN $2::jsonb
+              ELSE jsonb_set(
+                $2::jsonb,
+                '{is_featured}',
+                COALESCE(u.metadata->'is_featured', 'false'::jsonb),
+                true
+              )
+            END,
             original_filename = COALESCE($3, u.original_filename),
             mime_type = COALESCE($4, u.mime_type),
             file_size = COALESCE($5, u.file_size),
@@ -254,13 +262,20 @@ async function findModerationUploadById(id) {
   return result.rows[0];
 }
 
-async function updateUploadModeration(id, status, note, reviewerId) {
+async function updateUploadModeration(id, status, note, reviewerId, featured) {
   const result = await pool.query(
     `UPDATE uploads
-        SET status = $1, review_note = $2, reviewed_at = NOW(), reviewed_by = $3
+        SET status = $1,
+            review_note = $2,
+            metadata = CASE
+              WHEN $5::boolean IS NULL THEN metadata
+              ELSE jsonb_set(COALESCE(metadata, '{}'::jsonb), '{is_featured}', to_jsonb($5::boolean), true)
+            END,
+            reviewed_at = NOW(),
+            reviewed_by = $3
       WHERE id = $4
       RETURNING id, status, review_note, reviewed_at`,
-    [status, note || null, reviewerId, id]
+    [status, note || null, reviewerId, id, featured ?? null]
   );
   return result.rows[0];
 }

@@ -119,19 +119,23 @@ exports.listModerationUploads = catchAsync(async (req, res) => {
 });
 
 exports.updateModerationUpload = catchAsync(async (req, res, next) => {
-  const { decision, note } = req.body;
+  const { decision, note, featured } = req.body;
   if (!['approved', 'rejected'].includes(decision)) {
     return next(new AppError('A valid moderation decision is required.', 400));
   }
   if (note !== undefined && typeof note !== 'string') {
     return next(new AppError('Review note must be text.', 400));
   }
+  if (featured !== undefined && typeof featured !== 'boolean') {
+    return next(new AppError('Featured status must be boolean.', 400));
+  }
 
   const upload = await updateUploadModeration(
     req.params.id,
     decision,
     typeof note === 'string' ? note.trim() : '',
-    req.user.id
+    req.user.id,
+    featured
   );
   if (!upload) return next(new AppError('Upload not found.', 404));
 

@@ -24,10 +24,6 @@ function list(value) {
   return text(value).split(',').map((item) => item.trim()).filter(Boolean);
 }
 
-function boolean(value) {
-  return value === true || value === 'true';
-}
-
 function getMetadata(req, type) {
   return type === 'paper'
     ? {
@@ -42,7 +38,6 @@ function getMetadata(req, type) {
         paper_tags: text(req.body.paper_tags),
         paper_url: text(req.body.paper_url),
         paper_abstract: text(req.body.paper_abstract),
-        is_featured: boolean(req.body.is_featured),
       }
     : {
         presenter_name: list(req.body.presenter_name),
