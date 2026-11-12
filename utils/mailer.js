@@ -69,4 +69,47 @@ async function sendRegistrationVerificationEmail(email, verificationUrl) {
   });
 }
 
-module.exports = { sendPasswordResetEmail, sendRegistrationVerificationEmail };
+async function sendAccessRequestEmail({
+  email,
+  recipientName,
+  senderName,
+  shareLink,
+  message,
+  expiresAt,
+}) {
+  if (!transporter) {
+    throw new Error('SMTP mail settings are not configured.');
+  }
+
+  const expiryText = expiresAt
+    ? `This access request expires on ${new Date(expiresAt).toLocaleString()}.`
+    : 'This access request does not have an expiration date.';
+  const senderText = senderName || 'A CILab member';
+  const greeting = recipientName ? `Hello ${recipientName},` : 'Hello,';
+  const paragraphs = [
+    greeting,
+    `${senderText} has sent you an access request through the Computational Intelligence Lab.`,
+    ...(message ? [`Message from ${senderText}: ${message}`] : []),
+  ];
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: email,
+    subject: `${senderText} sent you an access request`,
+    text: `${paragraphs.join('\n\n')}\n\nOpen the shared link: ${shareLink}`,
+    attachments: logoAttachments(),
+    html: renderEmail({
+      preheader: `${senderText} sent you an access request.`,
+      title: 'New access request',
+      paragraphs,
+      button: { label: 'Open shared link', url: shareLink },
+      note: expiryText,
+    }),
+  });
+}
+
+module.exports = {
+  sendPasswordResetEmail,
+  sendRegistrationVerificationEmail,
+  sendAccessRequestEmail,
+};

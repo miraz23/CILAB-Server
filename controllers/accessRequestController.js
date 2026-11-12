@@ -3,6 +3,7 @@ const { randomUUID } = require('crypto');
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
 const { uploadBuffer, destroyResource, getOriginalFilename } = require('../config/cloudinary');
+const { sendAccessRequestEmail } = require('../utils/mailer');
 const { getUserById, findUsers } = require('../models/userModel');
 const {
   createAccessRequests,
@@ -136,6 +137,20 @@ exports.create = catchAsync(async (req, res, next) => {
     message: message || null,
     expiresAt,
   });
+  try {
+    await Promise.all(selectedRecipients.map((recipient) => sendAccessRequestEmail({
+      email: recipient.email,
+      recipientName: recipient.name,
+      senderName: req.user.name,
+      shareLink,
+      message: message || undefined,
+      expiresAt,
+    })));
+  } catch (error) {
+    console.error('Access request created, but notification email could not be sent:', error);
+    return next(new AppError('Access request created, but notification email could not be sent.', 502));
+  }
+
   res.status(201).json({
     success: true,
     message: 'Access request created.',
