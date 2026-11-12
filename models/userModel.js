@@ -161,7 +161,15 @@ async function findUsers(filters = {}) {
 
   const result = await pool.query(
     `SELECT id, name, email, scholar_id, institution, role, app_role, status,
-            created_at, last_active_at
+            created_at, last_active_at,
+            (SELECT COUNT(*)::int
+               FROM uploads AS paper_upload
+              WHERE paper_upload.user_id = users.id
+                AND paper_upload.upload_type = 'paper') AS papers_count,
+            (SELECT COUNT(*)::int
+               FROM uploads AS presentation_upload
+              WHERE presentation_upload.user_id = users.id
+                AND presentation_upload.upload_type = 'presentation') AS presentations_count
        FROM users
       ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
       ORDER BY ${orderBy}`,
@@ -203,7 +211,15 @@ async function updateUserAccess(id, changes) {
   const result = await pool.query(
     `UPDATE users SET ${fields.join(', ')}
       WHERE id = $${values.length}
-      RETURNING id, name, email, scholar_id, institution, role, app_role, status, created_at, last_active_at`,
+      RETURNING id, name, email, scholar_id, institution, role, app_role, status, created_at, last_active_at,
+        (SELECT COUNT(*)::int
+           FROM uploads AS paper_upload
+          WHERE paper_upload.user_id = users.id
+            AND paper_upload.upload_type = 'paper') AS papers_count,
+        (SELECT COUNT(*)::int
+           FROM uploads AS presentation_upload
+          WHERE presentation_upload.user_id = users.id
+            AND presentation_upload.upload_type = 'presentation') AS presentations_count`,
     values
   );
   return result.rows[0];

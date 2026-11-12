@@ -26,8 +26,8 @@ function serializeUser(user) {
     status: user.status,
     joinedAt: user.created_at,
     lastActiveAt: user.last_active_at || undefined,
-    papersCount: 0,
-    presentationsCount: 0,
+    papersCount: Number(user.papers_count || 0),
+    presentationsCount: Number(user.presentations_count || 0),
   };
 }
 
