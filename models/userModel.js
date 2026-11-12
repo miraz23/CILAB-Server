@@ -183,6 +183,7 @@ async function findPublicMembers() {
     `SELECT id, name, email, scholar_id, institution, role, created_at
        FROM users
       WHERE status = 'active'
+        AND app_role = 'MEMBER'
       ORDER BY
         CASE LOWER(role)
           WHEN 'faculty' THEN 0
