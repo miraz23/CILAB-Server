@@ -93,6 +93,21 @@ async function initializeDb() {
       decided_at TIMESTAMPTZ
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS member_requests (
+      id UUID PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'declined')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      decided_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS member_requests_pending_user_idx
+      ON member_requests (user_id)
+      WHERE status = 'pending';
+  `);
   // Older deployments may already have this table with a partial schema.
   // Add the columns used by the current request flow before creating indexes.
   await pool.query(`

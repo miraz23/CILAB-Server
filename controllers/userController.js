@@ -8,6 +8,7 @@ const {
   updateUserProfile,
   findUsers,
 } = require('../models/userModel');
+const { findLatestRequestByUserId } = require('../models/memberRequestModel');
 
 function serializeUser(user) {
   return {
@@ -43,7 +44,16 @@ exports.listCollaborators = catchAsync(async (req, res) => {
 
 exports.getProfile = catchAsync(async (req, res) => {
   const user = await getUserById(req.user.id);
-  res.json({ success: true, user: serializeUser(user) });
+  const request = await findLatestRequestByUserId(req.user.id);
+  res.json({
+    success: true,
+    user: { ...serializeUser(user), memberRequest: request ? {
+      id: request.id,
+      status: request.status,
+      createdAt: request.created_at,
+      decidedAt: request.decided_at || undefined,
+    } : null },
+  });
 });
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
