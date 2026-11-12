@@ -6,7 +6,14 @@ const {
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
+  updateAnnouncementPoster,
+  getAnnouncementById,
 } = require('../models/announcementModel');
+const {
+  getPrivateDownloadUrl,
+  getOriginalFilename,
+  uploadBuffer,
+} = require('../config/cloudinary');
 
 const KINDS = new Set(['announcement', 'notice', 'seminar']);
 const AUDIENCES = new Set(['all', 'students', 'faculty', 'admins']);
@@ -93,13 +100,54 @@ function serializeAnnouncement(announcement) {
     publishAt: announcement.publish_at || undefined,
     eventAt: announcement.event_at || undefined,
     venue: announcement.venue || undefined,
-    poster: announcement.poster || undefined,
+    poster: announcement.poster_public_id
+      ? `/api/announcements/${announcement.id}/preview`
+      : (announcement.poster || undefined),
     extraFields: announcement.extra_fields || [],
     createdAt: announcement.created_at,
     updatedAt: announcement.updated_at,
     author: { id: announcement.author_id, name: announcement.author_name },
   };
 }
+
+exports.uploadPoster = catchAsync(async (req, res, next) => {
+  if (!req.file) return next(new AppError('A PDF poster is required.', 400));
+
+  const announcement = await getAnnouncementById(req.params.id);
+  if (!announcement) return next(new AppError('Announcement not found.', 404));
+
+  const publicId = `announcements/${req.params.id}/${crypto.randomUUID()}`;
+  const result = await uploadBuffer(req.file.buffer, {
+    resource_type: 'raw',
+    public_id: publicId,
+    type: 'upload',
+  });
+  const updated = await updateAnnouncementPoster(req.params.id, {
+    publicId: result.public_id,
+    originalFilename: getOriginalFilename(req.file.originalname),
+    mimeType: req.file.mimetype,
+  });
+
+  res.json({
+    success: true,
+    message: 'Announcement PDF uploaded.',
+    announcement: serializeAnnouncement(updated),
+  });
+});
+
+exports.previewPoster = catchAsync(async (req, res, next) => {
+  const announcement = await getAnnouncementById(req.params.id);
+  if (!announcement || announcement.status !== 'published' || !announcement.poster_public_id) {
+    return next(new AppError('Announcement poster not found.', 404));
+  }
+
+  const response = await fetch(getPrivateDownloadUrl(announcement.poster_public_id));
+  if (!response.ok) return next(new AppError('Unable to retrieve the announcement poster.', 502));
+
+  res.setHeader('Content-Type', announcement.poster_mime_type || 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  res.send(Buffer.from(await response.arrayBuffer()));
+});
 
 exports.list = catchAsync(async (req, res) => {
   const status = req.query.status && req.query.status !== 'all' ? req.query.status : undefined;

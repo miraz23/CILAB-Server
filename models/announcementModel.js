@@ -2,7 +2,8 @@ const { pool } = require('../config/db');
 
 const SELECT_FIELDS = `
   SELECT a.id, a.kind, a.title, a.body, a.audience, a.priority, a.status, a.pinned,
-         a.publish_at, a.event_at, a.venue, a.poster, a.extra_fields,
+         a.publish_at, a.event_at, a.venue, a.poster, a.poster_public_id,
+         a.poster_original_filename, a.poster_mime_type, a.extra_fields,
          a.created_at, a.updated_at,
          COALESCE(u.id, '') AS author_id,
          COALESCE(u.name, 'Former administrator') AS author_name
@@ -101,6 +102,22 @@ async function updateAnnouncement(id, changes) {
   return getAnnouncementById(result.rows[0].id);
 }
 
+async function updateAnnouncementPoster(id, poster) {
+  const result = await pool.query(
+    `UPDATE announcements
+        SET poster = NULL,
+            poster_public_id = $1,
+            poster_original_filename = $2,
+            poster_mime_type = $3,
+            updated_at = NOW()
+      WHERE id = $4
+      RETURNING id`,
+    [poster.publicId, poster.originalFilename, poster.mimeType, id]
+  );
+  if (!result.rows[0]) return null;
+  return getAnnouncementById(result.rows[0].id);
+}
+
 async function getAnnouncementById(id) {
   const result = await pool.query(`${SELECT_FIELDS} WHERE a.id = $1`, [id]);
   return result.rows[0];
@@ -118,5 +135,7 @@ module.exports = {
   listAnnouncements,
   createAnnouncement,
   updateAnnouncement,
+  updateAnnouncementPoster,
+  getAnnouncementById,
   deleteAnnouncement,
 };

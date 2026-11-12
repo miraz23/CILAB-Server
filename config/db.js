@@ -321,6 +321,9 @@ async function initializeDb() {
       event_at TIMESTAMPTZ,
       venue TEXT,
       poster TEXT,
+      poster_public_id TEXT,
+      poster_original_filename TEXT,
+      poster_mime_type TEXT,
       extra_fields JSONB NOT NULL DEFAULT '[]'::jsonb,
       author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -331,6 +334,9 @@ async function initializeDb() {
   await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS event_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS venue TEXT`);
   await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS poster TEXT`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS poster_public_id TEXT`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS poster_original_filename TEXT`);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS poster_mime_type TEXT`);
   await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS extra_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS announcements_kind_status_idx
