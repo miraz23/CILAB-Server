@@ -15,6 +15,33 @@ function splitAuthors(value, fallback) {
   return authors.length ? authors : [fallback];
 }
 
+// "conference" -> "Conference", "early access" -> "Early Access"
+function titleCase(value, fallback) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return fallback;
+  return text
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+// Metadata lists (tags, indexed_in) may be stored as an array or a comma-separated string.
+function toList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return typeof value === 'string'
+    ? value.split(',').map((item) => item.trim()).filter(Boolean)
+    : [];
+}
+
+function toText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function fileSizeMb(upload) {
+  return Number((Number(upload.file_size) / 1024 / 1024).toFixed(2));
+}
+
+// Author/presenter emails are intentionally not exposed on this public endpoint.
 function serializeResearchUpload(upload) {
   const metadata = upload.metadata || {};
   const isPaper = upload.upload_type === 'paper';
@@ -24,41 +51,53 @@ function serializeResearchUpload(upload) {
   );
 
   if (isPaper) {
+    const category = toText(metadata.paper_category);
+    const tags = toList(metadata.paper_tags);
     return {
       id: upload.id,
       title: upload.title,
       featured: metadata.is_featured === true,
       authors,
-      venue: metadata.publication_venue || '',
+      venue: toText(metadata.publication_venue),
       year: metadata.publication_date
         ? new Date(metadata.publication_date).getFullYear()
         : new Date(upload.created_at).getFullYear(),
-      type: metadata.publication_type || 'journal',
-      publisher: metadata.publisher || '',
+      publicationDate: toText(metadata.publication_date) || undefined,
+      type: titleCase(metadata.publication_type, 'Journal'),
+      publisher: toText(metadata.publisher),
+      indexedIn: toList(metadata.indexed_in),
+      category,
+      tags,
+      topic: category || tags.join(', '),
       citedBy: 0,
-      topic: metadata.paper_tags || metadata.paper_category || '',
       access: 'open',
-      abstract: metadata.paper_abstract || undefined,
-      htmlUrl: metadata.paper_url || undefined,
+      abstract: toText(metadata.paper_abstract) || undefined,
+      htmlUrl: toText(metadata.paper_url) || undefined,
       pdfUrl: upload.cloudinary_url,
+      fileName: upload.original_filename,
       publishedAt: upload.created_at,
-      fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
+      fileSizeMb: fileSizeMb(upload),
     };
   }
 
+  const category = toText(metadata.presentation_category);
+  const tags = toList(metadata.presentation_tags);
   return {
     id: upload.id,
     title: upload.title,
     speakers: authors,
-    event: metadata.event_name || metadata.presentation_event || '',
-    date: metadata.presentation_date || new Date(upload.created_at).toISOString().slice(0, 10),
-    type: metadata.presentation_category || 'Other',
-    topic: metadata.presentation_tags || metadata.presentation_category || '',
-    description: metadata.presentation_description || undefined,
+    event: toText(metadata.event_name) || toText(metadata.presentation_event),
+    type: titleCase(metadata.presentation_event, 'Other'),
+    date: toText(metadata.presentation_date) || new Date(upload.created_at).toISOString().slice(0, 10),
+    category,
+    tags,
+    topic: category || tags.join(', '),
+    description: toText(metadata.presentation_description) || undefined,
     slidesUrl: upload.cloudinary_url,
-    videoUrl: metadata.paper_url || undefined,
+    videoUrl: toText(metadata.paper_url) || undefined,
+    fileName: upload.original_filename,
     publishedAt: upload.created_at,
-    fileSizeMb: Number((Number(upload.file_size) / 1024 / 1024).toFixed(2)),
+    fileSizeMb: fileSizeMb(upload),
   };
 }
 
