@@ -5,6 +5,7 @@ const {
   findModerationUploads,
   findModerationUploadById,
   updateUploadModeration,
+  updateUploadFeatured,
 } = require('../models/uploadModel');
 const { getPrivateDownloadUrl } = require('../config/cloudinary');
 const { getPlatformStats } = require('../models/analyticsModel');
@@ -119,29 +120,41 @@ exports.listModerationUploads = catchAsync(async (req, res) => {
 });
 
 exports.updateModerationUpload = catchAsync(async (req, res, next) => {
-  const { decision, note, featured } = req.body;
+  const { decision, note } = req.body;
   if (!['approved', 'rejected'].includes(decision)) {
     return next(new AppError('A valid moderation decision is required.', 400));
   }
   if (note !== undefined && typeof note !== 'string') {
     return next(new AppError('Review note must be text.', 400));
   }
-  if (featured !== undefined && typeof featured !== 'boolean') {
-    return next(new AppError('Featured status must be boolean.', 400));
-  }
 
   const upload = await updateUploadModeration(
     req.params.id,
     decision,
     typeof note === 'string' ? note.trim() : '',
-    req.user.id,
-    featured
+    req.user.id
   );
   if (!upload) return next(new AppError('Upload not found.', 404));
 
   res.json({
     success: true,
     message: `Upload ${decision}.`,
+    upload,
+  });
+});
+
+exports.updateModerationFeatured = catchAsync(async (req, res, next) => {
+  const { featured } = req.body;
+  if (typeof featured !== 'boolean') {
+    return next(new AppError('Featured status must be boolean.', 400));
+  }
+
+  const upload = await updateUploadFeatured(req.params.id, featured);
+  if (!upload) return next(new AppError('Only approved papers can be featured.', 404));
+
+  res.json({
+    success: true,
+    message: featured ? 'Paper is now featured.' : 'Paper is no longer featured.',
     upload,
   });
 });

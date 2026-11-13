@@ -11,5 +11,6 @@ router.get('/moderation', adminController.listModerationUploads);
 router.get('/moderation/:id/file', adminController.downloadModerationUpload);
 router.get('/moderation/:id/preview', adminController.previewModerationUpload);
 router.patch('/moderation/:id', adminController.updateModerationUpload);
+router.patch('/moderation/:id/featured', adminController.updateModerationFeatured);
 
 module.exports = router;

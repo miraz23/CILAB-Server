@@ -262,26 +262,41 @@ async function findModerationUploadById(id) {
   return result.rows[0];
 }
 
-async function updateUploadModeration(id, status, note, reviewerId, featured) {
+// A rejected paper is always unfeatured, so it cannot come back featured if it is approved again later.
+async function updateUploadModeration(id, status, note, reviewerId) {
   const result = await pool.query(
     `UPDATE uploads
         SET status = $1,
             review_note = $2,
             metadata = CASE
-              WHEN $5::boolean IS NULL THEN metadata
-              ELSE jsonb_set(COALESCE(metadata, '{}'::jsonb), '{is_featured}', to_jsonb($5::boolean), true)
+              WHEN $1 = 'rejected' AND upload_type = 'paper' AND COALESCE(metadata, '{}'::jsonb) ? 'is_featured'
+                THEN jsonb_set(metadata, '{is_featured}', 'false'::jsonb)
+              ELSE metadata
             END,
             reviewed_at = NOW(),
             reviewed_by = $3
       WHERE id = $4
       RETURNING id, status, review_note, reviewed_at`,
-    [status, note || null, reviewerId, id, featured ?? null]
+    [status, note || null, reviewerId, id]
+  );
+  return result.rows[0];
+}
+
+// Featuring applies to approved papers only and leaves the review decision and note untouched.
+async function updateUploadFeatured(id, featured) {
+  const result = await pool.query(
+    `UPDATE uploads
+        SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{is_featured}', to_jsonb($2::boolean), true)
+      WHERE id = $1 AND status = 'approved' AND upload_type = 'paper'
+      RETURNING id, metadata`,
+    [id, featured]
   );
   return result.rows[0];
 }
 
 module.exports = {
   createUpload,
+  updateUploadFeatured,
   findUploadsByUser,
   updateUploadByUser,
   deleteUploadByUser,
