@@ -9,8 +9,13 @@ const AppError = require('../utils/appError');
 
 function serializeResearchUpload(upload) {
   const fileRoute = upload.upload_type === 'paper' ? 'pdf' : 'presentation';
+  const metadata = upload.metadata || {};
   return {
     ...upload,
+    // is_featured is only written to metadata during moderation, so default it to false when absent.
+    metadata: upload.upload_type === 'paper'
+      ? { ...metadata, is_featured: metadata.is_featured === true }
+      : metadata,
     cloudinary_url: `/api/research/${upload.id}/${fileRoute}`,
   };
 }
