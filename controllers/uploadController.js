@@ -6,6 +6,7 @@ const {
   destroyResource,
   getOriginalFilename,
   getPrivateDownloadUrl,
+  createDirectUploadSignature,
 } = require('../config/cloudinary');
 const {
   createUpload,
@@ -52,6 +53,29 @@ function getMetadata(req, type) {
       };
 }
 
+function getDirectUploadDetails(req, type) {
+  const requestedFilename = text(req.body.filename);
+  if (!requestedFilename) {
+    throw new AppError('A file name is required.', 400);
+  }
+  const filename = getOriginalFilename(requestedFilename);
+
+  const folder = `cilab/${req.user.id}/${type}s`;
+  const publicId = `${filename.replace(/\.[^.]+$/, '')}-${randomUUID()}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = createDirectUploadSignature({ folder, public_id: publicId, timestamp });
+
+  return {
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder,
+    publicId,
+    resourceType: 'raw',
+    timestamp,
+    signature,
+  };
+}
+
 async function handleUpload(req, res, next, type) {
   if (!req.file) return next(new AppError('A file is required.', 400));
   const title = text(req.body[type === 'paper' ? 'paper_title' : 'presentation_title']);
@@ -84,6 +108,48 @@ async function handleUpload(req, res, next, type) {
 
   res.status(201).json({ success: true, message: `${type === 'paper' ? 'Paper' : 'Presentation'} uploaded successfully.`, upload });
 }
+
+exports.createPaperUploadSignature = catchAsync(async (req, res) => {
+  const details = getDirectUploadDetails(req, 'paper');
+  res.json({ success: true, upload: details });
+});
+
+exports.finalizePaperUpload = catchAsync(async (req, res, next) => {
+  const publicId = text(req.body.cloudinary_public_id);
+  const originalFilename = text(req.body.original_filename);
+  const mimeType = text(req.body.mime_type);
+  const cloudinaryUrl = text(req.body.cloudinary_url);
+  const fileSize = Number(req.body.file_size);
+  const expectedFolder = `cilab/${req.user.id}/papers/`;
+
+  if (!publicId || !publicId.startsWith(expectedFolder) || !originalFilename || !cloudinaryUrl) {
+    return next(new AppError('The uploaded file is invalid.', 400));
+  }
+  if (mimeType !== 'application/pdf' || !Number.isSafeInteger(fileSize) || fileSize <= 0 || fileSize > 50 * 1024 * 1024) {
+    return next(new AppError('Only PDF files up to 50MB are allowed.', 400));
+  }
+
+  const title = text(req.body.paper_title);
+  if (!title) return next(new AppError('Paper title is required.', 400));
+
+  const metadata = getMetadata(req, 'paper');
+  const upload = await createUpload({
+    id: randomUUID(),
+    userId: req.user.id,
+    type: 'paper',
+    title,
+    metadata,
+    originalFilename,
+    mimeType,
+    fileSize,
+    publicId,
+    url: cloudinaryUrl,
+    status: req.user.app_role === 'ADMIN' ? 'approved' : 'pending',
+    reviewedBy: req.user.app_role === 'ADMIN' ? req.user.id : null,
+  });
+
+  res.status(201).json({ success: true, message: 'Paper uploaded successfully.', upload });
+});
 
 exports.uploadPaper = catchAsync((req, res, next) => handleUpload(req, res, next, 'paper'));
 exports.uploadPresentation = catchAsync((req, res, next) => handleUpload(req, res, next, 'presentation'));

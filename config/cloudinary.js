@@ -60,6 +60,11 @@ function getPrivateDownloadUrl(publicId) {
   });
 }
 
+function createDirectUploadSignature(params) {
+  configureCloudinary();
+  return cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
+}
+
 module.exports = {
   cloudinary,
   configureCloudinary,
@@ -68,4 +73,5 @@ module.exports = {
   getOriginalFilename,
   getSignedDeliveryUrl,
   getPrivateDownloadUrl,
+  createDirectUploadSignature,
 };
