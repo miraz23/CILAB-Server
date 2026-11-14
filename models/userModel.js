@@ -226,6 +226,23 @@ async function updateUserAccess(id, changes) {
   return result.rows[0];
 }
 
+async function deleteUser(id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // uploads.reviewed_by has no ON DELETE action and would block deletion of reviewers.
+    await client.query('UPDATE uploads SET reviewed_by = NULL WHERE reviewed_by = $1', [id]);
+    const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function getUserById(id) {
   const result = await pool.query(
     `SELECT id, name, email, scholar_id, institution, role, app_role, status, created_at, last_active_at
@@ -315,6 +332,7 @@ module.exports = {
   findUsers,
   findPublicMembers,
   updateUserAccess,
+  deleteUser,
   getUserById,
   updateLastActive,
   updateUserProfile,

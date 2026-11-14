@@ -1,6 +1,6 @@
 const AppError = require('../utils/appError');
 const catchAsync = require('../middleware/catchAsync');
-const { findUsers, updateUserAccess } = require('../models/userModel');
+const { findUsers, updateUserAccess, deleteUser } = require('../models/userModel');
 const {
   findModerationUploads,
   findModerationUploadById,
@@ -49,6 +49,15 @@ exports.updateAccess = catchAsync(async (req, res, next) => {
   const user = await updateUserAccess(req.params.id, { appRole, status });
   if (!user) return next(new AppError('User not found or no access changes were provided.', 404));
   res.json({ success: true, message: 'User access updated.', user: serializeUser(user) });
+});
+
+exports.deleteUser = catchAsync(async (req, res, next) => {
+  if (req.params.id === req.user.id) {
+    return next(new AppError('You cannot delete your own account.', 400));
+  }
+  const deleted = await deleteUser(req.params.id);
+  if (!deleted) return next(new AppError('User not found.', 404));
+  res.json({ success: true, message: 'User deleted.' });
 });
 
 function serializeModerationUpload(upload) {

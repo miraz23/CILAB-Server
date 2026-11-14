@@ -15,10 +15,15 @@ async function authenticate(req, res, next) {
   }
 
   const user = await getUserById(payload.userId);
-  if (!user || user.status === 'suspended') {
+  if (!user) {
+    // Account was deleted: the token is no longer valid, so clients must sign out.
+    return next(new AppError('Your account no longer exists. Please sign in again.', 401));
+  }
+  if (user.status === 'suspended') {
     return next(new AppError('Your account cannot access this resource.', 403));
   }
   req.user = user;
+  req.tokenPayload = payload;
   await updateLastActive(user.id);
   return next();
 }

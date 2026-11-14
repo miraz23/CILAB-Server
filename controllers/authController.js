@@ -29,6 +29,8 @@ function createToken(user) {
   );
 }
 
+exports.createToken = createToken;
+
 exports.register = catchAsync(async (req, res, next) => {
   const { name, email, password, scholarId, institution, role } = req.body;
 

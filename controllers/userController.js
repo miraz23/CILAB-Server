@@ -8,6 +8,7 @@ const {
   updateUserProfile,
   findUsers,
 } = require('../models/userModel');
+const { createToken } = require('./authController');
 const { findLatestRequestByUserId } = require('../models/memberRequestModel');
 
 function serializeUser(user) {
@@ -45,8 +46,11 @@ exports.listCollaborators = catchAsync(async (req, res) => {
 exports.getProfile = catchAsync(async (req, res) => {
   const user = await getUserById(req.user.id);
   const request = await findLatestRequestByUserId(req.user.id);
+
+  const roleChanged = req.tokenPayload && req.tokenPayload.appRole !== user.app_role;
   res.json({
     success: true,
+    ...(roleChanged ? { token: createToken(user) } : {}),
     user: { ...serializeUser(user), memberRequest: request ? {
       id: request.id,
       status: request.status,
